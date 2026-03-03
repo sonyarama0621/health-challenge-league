@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Health Challenge League</title>
+
+  <!-- Tailwind CDN (fine for MVP) -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Outfit', sans-serif; }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-900 text-white p-6">
+  <div class="max-w-xl mx-auto">
+    <h1 class="text-4xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
+      Health Challenge League
+    </h1>
+    <p class="text-slate-400 mb-8">Sign up, verify your email, then log in to play.</p>
+
+    <!-- AUTH BOX -->
+    <div id="auth-box" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-6">
+      <div class="space-y-2">
+        <h2 class="text-xl font-bold">Create account</h2>
+        <input id="su-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-name" type="text" placeholder="Display name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-emoji" type="text" placeholder="Avatar emoji (ex: 🚀)" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-signup" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+          Sign up (will email you a verification link)
+        </button>
+        <p class="text-xs text-slate-400">After signup, check your inbox and click the verification link.</p>
+      </div>
+
+      <hr class="border-slate-700" />
+
+      <div class="space-y-2">
+        <h2 class="text-xl font-bold">Log in</h2>
+        <input id="li-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="li-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-login" class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
+          Log in
+        </button>
+      </div>
+
+      <div id="auth-msg" class="text-sm text-slate-300"></div>
+    </div>
+
+    <!-- GAME BOX -->
+    <div id="game-box" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6 mt-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-slate-400 text-sm">Logged in as</div>
+          <div id="whoami" class="text-xl font-bold"></div>
+        </div>
+        <button id="btn-logout" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">
+          Log out
+        </button>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-900 border border-slate-700">
+        <p class="font-semibold mb-2">✅ Next step:</p>
+        <p class="text-slate-300 text-sm">
+          This is where we’ll paste your full game UI and connect it to the database (streaks, achievements, leagues, etc.).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
