@@ -14,12 +14,32 @@ const btnSignup = document.getElementById("btn-signup");
 const btnLogin = document.getElementById("btn-login");
 const btnLogout = document.getElementById("btn-logout");
 
-// Game UI
+// Stats
 const pointsEl = document.getElementById("points");
 const streakEl = document.getElementById("streak");
 const bestStreakEl = document.getElementById("best-streak");
-const btnLogWater = document.getElementById("btn-log-water");
 const gameMsg = document.getElementById("game-msg");
+
+// Habits buttons
+const btnSteps = document.getElementById("btn-steps");
+const btnProtein = document.getElementById("btn-protein");
+const btnWater = document.getElementById("btn-water");
+const btnNoSugar = document.getElementById("btn-no-sugar");
+const btnNoCoke = document.getElementById("btn-no-coke");
+const btnWorkout = document.getElementById("btn-workout");
+const btnReading = document.getElementById("btn-reading");
+const btnSleep = document.getElementById("btn-sleep");
+
+// Steps modal
+const stepsModal = document.getElementById("steps-modal");
+const btnSteps5k = document.getElementById("btn-steps-5k");
+const btnSteps10k = document.getElementById("btn-steps-10k");
+const btnStepsCancel = document.getElementById("btn-steps-cancel");
+
+// Already modal
+const alreadyModal = document.getElementById("already-modal");
+const alreadyText = document.getElementById("already-text");
+const btnAlreadyClose = document.getElementById("btn-already-close");
 
 function setMsg(text) {
   authMsg.textContent = text || "";
@@ -48,7 +68,6 @@ function showGame(profile) {
 }
 
 async function ensureProfile(user, fallbackName, fallbackEmoji) {
-  // Check if profile exists
   const { data: existing, error: selErr } = await supabaseClient
     .from("players")
     .select("user_id,email,name,avatar,points,current_streak,best_streak,last_checkin")
@@ -58,7 +77,6 @@ async function ensureProfile(user, fallbackName, fallbackEmoji) {
   if (selErr) throw selErr;
   if (existing) return existing;
 
-  // Create profile row
   const profile = {
     user_id: user.id,
     email: user.email,
@@ -83,7 +101,6 @@ async function ensureProfile(user, fallbackName, fallbackEmoji) {
 // ---------- AUTH ----------
 btnSignup.addEventListener("click", async () => {
   setMsg("");
-
   btnSignup.disabled = true;
   const oldText = btnSignup.textContent;
   btnSignup.textContent = "Working...";
@@ -124,7 +141,6 @@ btnSignup.addEventListener("click", async () => {
 
 btnLogin.addEventListener("click", async () => {
   setMsg("");
-
   btnLogin.disabled = true;
   const oldText = btnLogin.textContent;
   btnLogin.textContent = "Logging in...";
@@ -167,18 +183,36 @@ btnLogout.addEventListener("click", async () => {
   setMsg("Logged out.");
 });
 
-// ---------- HABIT LOGGING + STREAK UPDATE ----------
+// ---------- MODALS ----------
+function openStepsModal() {
+  stepsModal?.classList.remove("hidden");
+}
+function closeStepsModal() {
+  stepsModal?.classList.add("hidden");
+}
+
+function showAlreadyLogged(habitLabel) {
+  if (alreadyText) alreadyText.textContent = `You already logged "${habitLabel}" today!`;
+  alreadyModal?.classList.remove("hidden");
+}
+function closeAlreadyLogged() {
+  alreadyModal?.classList.add("hidden");
+}
+
+btnStepsCancel?.addEventListener("click", closeStepsModal);
+btnAlreadyClose?.addEventListener("click", closeAlreadyLogged);
+
+// ---------- HABIT LOGGING + STREAK ----------
 function toYMD(d) {
   return d.toISOString().slice(0, 10);
 }
-
 function diffDays(aYmd, bYmd) {
   const a = new Date(aYmd + "T00:00:00");
   const b = new Date(bYmd + "T00:00:00");
   return Math.round((a - b) / 86400000);
 }
 
-async function logHabit(habitKey, points) {
+async function logHabit(habitKey, habitLabel, points) {
   setGameMsg("");
 
   const { data: sessionData } = await supabaseClient.auth.getSession();
@@ -191,7 +225,7 @@ async function logHabit(habitKey, points) {
 
   const today = toYMD(new Date());
 
-  // 1) Insert habit log (unique constraint blocks duplicates)
+  // 1) Insert habit log (unique constraint blocks duplicates per habit/day)
   const { error: insErr } = await supabaseClient
     .from("habit_logs")
     .insert({ user_id: user.id, log_date: today, habit_key: habitKey, points });
@@ -199,7 +233,7 @@ async function logHabit(habitKey, points) {
   if (insErr) {
     const msg = (insErr.message || "").toLowerCase();
     if (msg.includes("duplicate") || msg.includes("unique")) {
-      setGameMsg(`You already logged "${habitKey}" today ✅`);
+      showAlreadyLogged(habitLabel);
     } else {
       setGameMsg(`Habit log error: ${insErr.message}`);
     }
@@ -226,7 +260,7 @@ async function logHabit(habitKey, points) {
   const last = prof.last_checkin; // YYYY-MM-DD or null
 
   if (last) {
-    const days = diffDays(today, last); // today - last
+    const days = diffDays(today, last);
     if (days === 0) newStreak = prof.current_streak || 1;
     else if (days === 1) newStreak = (prof.current_streak || 0) + 1;
     else newStreak = 1;
@@ -254,22 +288,29 @@ async function logHabit(habitKey, points) {
   }
 
   showGame(updated);
-  setGameMsg(`Logged "${habitKey}" ✅ +${points} pts`);
+  setGameMsg(`Logged "${habitLabel}" ✅ +${points} pts`);
 }
 
-// Temporary test button: Water (+5)
-btnLogWater?.addEventListener("click", async () => {
-  btnLogWater.disabled = true;
-  const oldText = btnLogWater.textContent;
-  btnLogWater.textContent = "Logging...";
+// ---------- BUTTON WIRING ----------
+btnSteps?.addEventListener("click", openStepsModal);
 
-  try {
-    await logHabit("water", 5);
-  } finally {
-    btnLogWater.disabled = false;
-    btnLogWater.textContent = oldText;
-  }
+btnSteps5k?.addEventListener("click", async () => {
+  closeStepsModal();
+  await logHabit("steps_5k", "5K–9.9K Steps", 6);
 });
+
+btnSteps10k?.addEventListener("click", async () => {
+  closeStepsModal();
+  await logHabit("steps_10k", "10K+ Steps", 10);
+});
+
+btnProtein?.addEventListener("click", () => logHabit("protein", "Protein Goal", 8));
+btnWater?.addEventListener("click", () => logHabit("water", "64+ oz Water", 5));
+btnNoSugar?.addEventListener("click", () => logHabit("no_sugar", "No Added Sugar", 7));
+btnNoCoke?.addEventListener("click", () => logHabit("no_coke", "No Coke", 5));
+btnWorkout?.addEventListener("click", () => logHabit("workout", "30+ min Workout", 12));
+btnReading?.addEventListener("click", () => logHabit("reading", "30+ min Reading", 9));
+btnSleep?.addEventListener("click", () => logHabit("sleep", "7–8 hrs Sleep", 11));
 
 // Auto-session restore
 (async function init() {
