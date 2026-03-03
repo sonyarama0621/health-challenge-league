@@ -64,11 +64,29 @@
         </button>
       </div>
 
-      <div class="p-4 rounded-xl bg-slate-900 border border-slate-700">
-        <p class="font-semibold mb-2">✅ Next step:</p>
-        <p class="text-slate-300 text-sm">
-          This is where we’ll paste your full game UI and connect it to the database (streaks, achievements, leagues, etc.).
-        </p>
+      <!-- NEW: Points + Streak + Daily Check-In -->
+      <div class="p-4 rounded-xl bg-slate-900 border border-slate-700 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-slate-400 text-sm">Points</div>
+            <div id="points" class="text-3xl font-extrabold text-amber-400">0</div>
+          </div>
+          <div class="text-right">
+            <div class="text-slate-400 text-sm">Streak</div>
+            <div id="streak" class="text-3xl font-extrabold text-emerald-400">0 🔥</div>
+            <div id="best-streak" class="text-xs text-slate-400">Best: 0</div>
+          </div>
+        </div>
+
+        <button id="btn-checkin" class="w-full font-bold py-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-900">
+          Daily Check-In (+10 pts)
+        </button>
+
+        <div id="game-msg" class="text-sm text-slate-300"></div>
+
+        <div class="text-xs text-slate-400">
+          Next we’ll replace this with your full habits + leaderboard + achievements.
+        </div>
       </div>
     </div>
   </div>
