@@ -1,9 +1,11 @@
-// 1) Paste your Supabase project URL + anon key here
-// Supabase → Project Settings → API Keys
+// Supabase → Project Settings → API
 const SUPABASE_URL = "https://onndovdpdaccsavbkykm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ubmRvdmRwZGFjY3NhdmJreWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjI2NTksImV4cCI6MjA4ODEzODY1OX0.7dnpa5q34PbW34tF1U83NRJGWRyR70twlDNxgXMOoeE";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ubmRvdmRwZGFjY3NhdmJreWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjI2NTksImV4cCI6MjA4ODEzODY1OX0.7dnpa5q34PbW34tF1U83NRJGWRyR70twlDNxgXMOoeE";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// IMPORTANT: Supabase CDN script already creates window.supabase,
+// so we must NOT redeclare "supabase" as a variable name.
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // UI elements
 const authBox = document.getElementById("auth-box");
@@ -32,7 +34,7 @@ function showAuth() {
 
 async function ensureProfile(user, fallbackName, fallbackEmoji) {
   // Check if profile exists
-  const { data: existing, error: selErr } = await supabase
+  const { data: existing, error: selErr } = await supabaseClient
     .from("players")
     .select("user_id,email,name,avatar")
     .eq("user_id", user.id)
@@ -49,7 +51,7 @@ async function ensureProfile(user, fallbackName, fallbackEmoji) {
     avatar: fallbackEmoji || "👤",
   };
 
-  const { data: inserted, error: insErr } = await supabase
+  const { data: inserted, error: insErr } = await supabaseClient
     .from("players")
     .insert(profile)
     .select()
@@ -62,78 +64,105 @@ async function ensureProfile(user, fallbackName, fallbackEmoji) {
 btnSignup.addEventListener("click", async () => {
   setMsg("");
 
-  const email = document.getElementById("su-email").value.trim().toLowerCase();
-  const password = document.getElementById("su-pass").value;
-  const name = document.getElementById("su-name").value.trim();
-  const emoji = document.getElementById("su-emoji").value.trim();
+  // Immediate UI feedback so it never feels like "nothing happened"
+  btnSignup.disabled = true;
+  const oldText = btnSignup.textContent;
+  btnSignup.textContent = "Working...";
 
-  if (!email || !password || !name) {
-    setMsg("Please enter email, password, and display name.");
-    return;
-  }
+  try {
+    const email = document.getElementById("su-email").value.trim().toLowerCase();
+    const password = document.getElementById("su-pass").value;
+    const name = document.getElementById("su-name").value.trim();
+    const emoji = document.getElementById("su-emoji").value.trim();
 
-  // IMPORTANT: redirectTo must match Supabase Auth URL configuration
-  const redirectTo = window.location.origin + window.location.pathname;
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: redirectTo,
-      data: { name, emoji }
+    if (!email || !password || !name) {
+      setMsg("Please enter email, password, and display name.");
+      return;
     }
-  });
 
-  if (error) {
-    setMsg(`Signup error: ${error.message}`);
-    return;
+    // This must match your Supabase Auth URL configuration
+    const redirectTo = "https://sonyarama0621.github.io/health-challenge-league/";
+
+    const { error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectTo,
+        data: { name, emoji },
+      },
+    });
+
+    if (error) {
+      setMsg(`Signup error: ${error.message}`);
+      return;
+    }
+
+    setMsg(
+      "Signup submitted ✅ Check your email for the verification link, then come back and log in."
+    );
+  } catch (e) {
+    setMsg(`Unexpected error: ${e?.message || e}`);
+  } finally {
+    btnSignup.disabled = false;
+    btnSignup.textContent = oldText;
   }
-
-  setMsg("Signup successful! Check your email and click the verification link, then come back and log in.");
 });
 
 btnLogin.addEventListener("click", async () => {
   setMsg("");
 
-  const email = document.getElementById("li-email").value.trim().toLowerCase();
-  const password = document.getElementById("li-pass").value;
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    setMsg(`Login error: ${error.message}`);
-    return;
-  }
-
-  // If email isn't confirmed, Supabase usually blocks login depending on settings,
-  // but we still handle it gracefully.
-  const user = data.user;
-  if (!user) {
-    setMsg("Login failed. Please try again.");
-    return;
-  }
+  btnLogin.disabled = true;
+  const oldText = btnLogin.textContent;
+  btnLogin.textContent = "Logging in...";
 
   try {
+    const email = document.getElementById("li-email").value.trim().toLowerCase();
+    const password = document.getElementById("li-pass").value;
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setMsg(`Login error: ${error.message}`);
+      return;
+    }
+
+    const user = data.user;
+    if (!user) {
+      setMsg("Login failed. Please try again.");
+      return;
+    }
+
     const name = user.user_metadata?.name || "Player";
     const emoji = user.user_metadata?.emoji || "👤";
     const profile = await ensureProfile(user, name, emoji);
     showGame(profile);
   } catch (e) {
-    setMsg(`Profile error: ${e.message || e}`);
+    setMsg(`Profile/login error: ${e?.message || e}`);
+  } finally {
+    btnLogin.disabled = false;
+    btnLogin.textContent = oldText;
   }
 });
 
 btnLogout.addEventListener("click", async () => {
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   showAuth();
   setMsg("Logged out.");
 });
 
 // Auto-session restore
 (async function init() {
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    showAuth();
+    setMsg(`Session error: ${error.message}`);
+    return;
+  }
 
+  const session = data.session;
   if (!session?.user) {
     showAuth();
     return;
@@ -147,6 +176,6 @@ btnLogout.addEventListener("click", async () => {
     showGame(profile);
   } catch (e) {
     showAuth();
-    setMsg(`Session error: ${e.message || e}`);
+    setMsg(`Session error: ${e?.message || e}`);
   }
 })();
