@@ -64,7 +64,7 @@
         </button>
       </div>
 
-      <!-- NEW: Points + Streak + Daily Check-In -->
+      <!-- Stats + (temporary) habit test button -->
       <div class="p-4 rounded-xl bg-slate-900 border border-slate-700 space-y-4">
         <div class="flex items-center justify-between">
           <div>
@@ -78,14 +78,15 @@
           </div>
         </div>
 
-        <button id="btn-checkin" class="w-full font-bold py-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-900">
-          Daily Check-In (+10 pts)
+        <!-- Temporary test button (we'll replace with full habit grid next) -->
+        <button id="btn-log-water" class="w-full font-bold py-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-900">
+          Log “Water” Habit (+5 pts)
         </button>
 
         <div id="game-msg" class="text-sm text-slate-300"></div>
 
         <div class="text-xs text-slate-400">
-          Next we’ll replace this with your full habits + leaderboard + achievements.
+          Streak counts if you log at least 1 habit today. Missing a day resets your streak.
         </div>
       </div>
     </div>
