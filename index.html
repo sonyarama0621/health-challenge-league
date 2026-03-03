@@ -18,7 +18,7 @@
 </head>
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
-  <div class="max-w-xl mx-auto">
+  <div class="max-w-2xl mx-auto">
     <h1 class="text-4xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
       Health Challenge League
     </h1>
@@ -64,8 +64,8 @@
         </button>
       </div>
 
-      <!-- Stats + (temporary) habit test button -->
-      <div class="p-4 rounded-xl bg-slate-900 border border-slate-700 space-y-4">
+      <!-- Stats -->
+      <div class="p-4 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-slate-400 text-sm">Points</div>
@@ -77,18 +77,81 @@
             <div id="best-streak" class="text-xs text-slate-400">Best: 0</div>
           </div>
         </div>
-
-        <!-- Temporary test button (we'll replace with full habit grid next) -->
-        <button id="btn-log-water" class="w-full font-bold py-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-900">
-          Log “Water” Habit (+5 pts)
-        </button>
-
         <div id="game-msg" class="text-sm text-slate-300"></div>
-
-        <div class="text-xs text-slate-400">
-          Streak counts if you log at least 1 habit today. Missing a day resets your streak.
+        <div class="text-xs text-slate-500">
+          Streak counts if you log at least 1 habit today. Each habit can be logged once per day.
         </div>
       </div>
+
+      <!-- Habits Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button id="btn-steps" class="font-bold py-3 rounded-lg bg-blue-600 hover:bg-blue-500">
+          🚶 Steps (+6 / +10)
+        </button>
+
+        <button id="btn-protein" class="font-bold py-3 rounded-lg bg-red-600 hover:bg-red-500">
+          🥩 Protein (+8)
+        </button>
+
+        <button id="btn-water" class="font-bold py-3 rounded-lg bg-cyan-600 hover:bg-cyan-500">
+          💧 Water (+5)
+        </button>
+
+        <button id="btn-no-sugar" class="font-bold py-3 rounded-lg bg-pink-600 hover:bg-pink-500">
+          🍬 No Sugar (+7)
+        </button>
+
+        <button id="btn-no-coke" class="font-bold py-3 rounded-lg bg-amber-600 hover:bg-amber-500">
+          🥤 No Coke (+5)
+        </button>
+
+        <button id="btn-workout" class="font-bold py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500">
+          💪 Workout (+12)
+        </button>
+
+        <button id="btn-reading" class="font-bold py-3 rounded-lg bg-orange-600 hover:bg-orange-500">
+          📚 Reading (+9)
+        </button>
+
+        <button id="btn-sleep" class="font-bold py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500">
+          😴 Sleep (+11)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Steps Modal -->
+  <div id="steps-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-gradient-to-br from-blue-600 to-sky-600 rounded-2xl p-8 w-full max-w-md text-center shadow-2xl border border-blue-400/50">
+      <div class="text-6xl mb-4">🚶</div>
+      <h3 class="text-2xl font-bold text-white mb-2">How many steps today?</h3>
+      <p class="text-blue-100 text-sm mb-6">Choose your step count to earn points!</p>
+
+      <div class="space-y-3">
+        <button id="btn-steps-5k" class="w-full bg-white text-blue-600 font-bold py-3 rounded-lg hover:bg-blue-50 transition-all text-lg">
+          5K–9.9K Steps (+6 pts)
+        </button>
+        <button id="btn-steps-10k" class="w-full bg-white text-blue-600 font-bold py-3 rounded-lg hover:bg-blue-50 transition-all text-lg">
+          10K+ Steps (+10 pts)
+        </button>
+      </div>
+
+      <button id="btn-steps-cancel" class="w-full mt-4 bg-blue-700/50 text-blue-100 font-semibold py-2 rounded-lg hover:bg-blue-700/70 transition-all">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- “Already logged” popup -->
+  <div id="already-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-gradient-to-br from-amber-600 to-orange-600 rounded-2xl p-8 w-full max-w-md text-center shadow-2xl border border-amber-400/50">
+      <div class="text-6xl mb-4">⏰</div>
+      <h3 class="text-2xl font-bold text-white mb-2">Already Logged</h3>
+      <p class="text-lg text-amber-50 mb-2" id="already-text">You already logged this habit today!</p>
+      <p class="text-amber-100 text-sm mb-6">Come back tomorrow to log it again. You’re doing great! 🌟</p>
+      <button id="btn-already-close" class="w-full bg-white text-amber-600 font-bold py-3 rounded-lg hover:bg-amber-50 transition-all text-lg">
+        Got It 😊
+      </button>
     </div>
   </div>
 
