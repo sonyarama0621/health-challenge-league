@@ -14,11 +14,11 @@ const btnSignup = document.getElementById("btn-signup");
 const btnLogin = document.getElementById("btn-login");
 const btnLogout = document.getElementById("btn-logout");
 
-// Game UI (exists only when logged in)
+// Game UI
 const pointsEl = document.getElementById("points");
 const streakEl = document.getElementById("streak");
 const bestStreakEl = document.getElementById("best-streak");
-const btnCheckin = document.getElementById("btn-checkin");
+const btnLogWater = document.getElementById("btn-log-water");
 const gameMsg = document.getElementById("game-msg");
 
 function setMsg(text) {
@@ -167,8 +167,18 @@ btnLogout.addEventListener("click", async () => {
   setMsg("Logged out.");
 });
 
-// ---------- DAILY CHECK-IN (Duolingo-style) ----------
-btnCheckin?.addEventListener("click", async () => {
+// ---------- HABIT LOGGING + STREAK UPDATE ----------
+function toYMD(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function diffDays(aYmd, bYmd) {
+  const a = new Date(aYmd + "T00:00:00");
+  const b = new Date(bYmd + "T00:00:00");
+  return Math.round((a - b) / 86400000);
+}
+
+async function logHabit(habitKey, points) {
   setGameMsg("");
 
   const { data: sessionData } = await supabaseClient.auth.getSession();
@@ -179,76 +189,85 @@ btnCheckin?.addEventListener("click", async () => {
     return;
   }
 
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const CHECKIN_POINTS = 10;
+  const today = toYMD(new Date());
 
-  btnCheckin.disabled = true;
-  const oldText = btnCheckin.textContent;
-  btnCheckin.textContent = "Checking in...";
+  // 1) Insert habit log (unique constraint blocks duplicates)
+  const { error: insErr } = await supabaseClient
+    .from("habit_logs")
+    .insert({ user_id: user.id, log_date: today, habit_key: habitKey, points });
+
+  if (insErr) {
+    const msg = (insErr.message || "").toLowerCase();
+    if (msg.includes("duplicate") || msg.includes("unique")) {
+      setGameMsg(`You already logged "${habitKey}" today ✅`);
+    } else {
+      setGameMsg(`Habit log error: ${insErr.message}`);
+    }
+    return;
+  }
+
+  // 2) Load profile
+  const { data: prof, error: profErr } = await supabaseClient
+    .from("players")
+    .select("user_id,email,name,avatar,points,current_streak,best_streak,last_checkin")
+    .eq("user_id", user.id)
+    .single();
+
+  if (profErr) {
+    setGameMsg(`Profile load error: ${profErr.message}`);
+    return;
+  }
+
+  // 3) Compute streak:
+  // - if last_checkin is today => streak unchanged
+  // - if last_checkin is yesterday => streak +1
+  // - else => streak = 1 (because they logged at least 1 habit today)
+  let newStreak = 1;
+  const last = prof.last_checkin; // YYYY-MM-DD or null
+
+  if (last) {
+    const days = diffDays(today, last); // today - last
+    if (days === 0) newStreak = prof.current_streak || 1;
+    else if (days === 1) newStreak = (prof.current_streak || 0) + 1;
+    else newStreak = 1;
+  }
+
+  const newBest = Math.max(prof.best_streak || 0, newStreak);
+  const newPoints = (prof.points || 0) + points;
+
+  // 4) Update profile + set last_checkin to today
+  const { data: updated, error: upErr } = await supabaseClient
+    .from("players")
+    .update({
+      points: newPoints,
+      current_streak: newStreak,
+      best_streak: newBest,
+      last_checkin: today,
+    })
+    .eq("user_id", user.id)
+    .select("user_id,email,name,avatar,points,current_streak,best_streak,last_checkin")
+    .single();
+
+  if (upErr) {
+    setGameMsg(`Update error: ${upErr.message}`);
+    return;
+  }
+
+  showGame(updated);
+  setGameMsg(`Logged "${habitKey}" ✅ +${points} pts`);
+}
+
+// Temporary test button: Water (+5)
+btnLogWater?.addEventListener("click", async () => {
+  btnLogWater.disabled = true;
+  const oldText = btnLogWater.textContent;
+  btnLogWater.textContent = "Logging...";
 
   try {
-    // 1) Insert checkin row (unique constraint enforces once/day)
-    const { error: insErr } = await supabaseClient
-      .from("checkins")
-      .insert({ user_id: user.id, checkin_date: today, points_awarded: CHECKIN_POINTS });
-
-    if (insErr) {
-      const msg = (insErr.message || "").toLowerCase();
-      if (msg.includes("duplicate") || msg.includes("unique")) {
-        setGameMsg("You already checked in today ✅ Come back tomorrow!");
-      } else {
-        setGameMsg(`Check-in error: ${insErr.message}`);
-      }
-      return;
-    }
-
-    // 2) Load current profile
-    const { data: prof, error: profErr } = await supabaseClient
-      .from("players")
-      .select("user_id,email,name,avatar,points,current_streak,best_streak,last_checkin")
-      .eq("user_id", user.id)
-      .single();
-
-    if (profErr) throw profErr;
-
-    // 3) Calculate streak
-    let newStreak = 1;
-
-    if (prof.last_checkin) {
-      const lastDate = new Date(prof.last_checkin + "T00:00:00");
-      const todayDate = new Date(today + "T00:00:00");
-      const diffDays = Math.round((todayDate - lastDate) / 86400000);
-
-      if (diffDays === 1) newStreak = (prof.current_streak || 0) + 1;
-      else if (diffDays === 0) newStreak = prof.current_streak || 0;
-      else newStreak = 1;
-    }
-
-    const newBest = Math.max(prof.best_streak || 0, newStreak);
-    const newPoints = (prof.points || 0) + CHECKIN_POINTS;
-
-    // 4) Update profile
-    const { data: updated, error: upErr } = await supabaseClient
-      .from("players")
-      .update({
-        points: newPoints,
-        current_streak: newStreak,
-        best_streak: newBest,
-        last_checkin: today,
-      })
-      .eq("user_id", user.id)
-      .select("user_id,email,name,avatar,points,current_streak,best_streak,last_checkin")
-      .single();
-
-    if (upErr) throw upErr;
-
-    showGame(updated);
-    setGameMsg("Check-in complete! 🎉");
-  } catch (e) {
-    setGameMsg(`Unexpected error: ${e?.message || e}`);
+    await logHabit("water", 5);
   } finally {
-    btnCheckin.disabled = false;
-    btnCheckin.textContent = oldText;
+    btnLogWater.disabled = false;
+    btnLogWater.textContent = oldText;
   }
 });
 
