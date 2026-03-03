@@ -41,6 +41,9 @@ const alreadyModal = document.getElementById("already-modal");
 const alreadyText = document.getElementById("already-text");
 const btnAlreadyClose = document.getElementById("btn-already-close");
 
+// Track what’s logged today so we can gray out buttons
+let todaysHabits = new Set(); // contains habit_key(s), and we will also store "steps" when either steps_5k or steps_10k is logged.
+
 function setMsg(text) {
   authMsg.textContent = text || "";
 }
@@ -169,6 +172,7 @@ btnLogin.addEventListener("click", async () => {
     );
 
     showGame(profile);
+    await loadTodaysHabitsAndUpdateUI();
   } catch (e) {
     setMsg(`Login error: ${e?.message || e}`);
   } finally {
@@ -202,10 +206,68 @@ function closeAlreadyLogged() {
 btnStepsCancel?.addEventListener("click", closeStepsModal);
 btnAlreadyClose?.addEventListener("click", closeAlreadyLogged);
 
-// ---------- HABIT LOGGING + STREAK ----------
+// ---------- HABIT UI (GRAY OUT COMPLETED) ----------
+function setHabitButtonDone(buttonEl, isDone) {
+  if (!buttonEl) return;
+
+  // Keep clickable, but look disabled
+  if (isDone) {
+    buttonEl.classList.add("opacity-40", "grayscale");
+    buttonEl.classList.remove("hover:opacity-100");
+    buttonEl.setAttribute("data-done", "true");
+  } else {
+    buttonEl.classList.remove("opacity-40", "grayscale");
+    buttonEl.removeAttribute("data-done");
+  }
+}
+
+function updateHabitButtonsFromTodaysHabits() {
+  // Steps is special: consider steps done if either steps_5k or steps_10k is logged
+  const stepsDone = todaysHabits.has("steps_5k") || todaysHabits.has("steps_10k") || todaysHabits.has("steps");
+
+  setHabitButtonDone(btnSteps, stepsDone);
+  setHabitButtonDone(btnProtein, todaysHabits.has("protein"));
+  setHabitButtonDone(btnWater, todaysHabits.has("water"));
+  setHabitButtonDone(btnNoSugar, todaysHabits.has("no_sugar"));
+  setHabitButtonDone(btnNoCoke, todaysHabits.has("no_coke"));
+  setHabitButtonDone(btnWorkout, todaysHabits.has("workout"));
+  setHabitButtonDone(btnReading, todaysHabits.has("reading"));
+  setHabitButtonDone(btnSleep, todaysHabits.has("sleep"));
+}
+
 function toYMD(d) {
   return d.toISOString().slice(0, 10);
 }
+
+async function loadTodaysHabitsAndUpdateUI() {
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  const user = sessionData.session?.user;
+  if (!user) return;
+
+  const today = toYMD(new Date());
+
+  const { data, error } = await supabaseClient
+    .from("habit_logs")
+    .select("habit_key")
+    .eq("user_id", user.id)
+    .eq("log_date", today);
+
+  if (error) {
+    // Don’t block the UI if it fails; just show message
+    setGameMsg(`Could not load today's habits: ${error.message}`);
+    return;
+  }
+
+  todaysHabits = new Set((data || []).map(r => r.habit_key));
+  // convenience marker
+  if (todaysHabits.has("steps_5k") || todaysHabits.has("steps_10k")) {
+    todaysHabits.add("steps");
+  }
+
+  updateHabitButtonsFromTodaysHabits();
+}
+
+// ---------- HABIT LOGGING + STREAK ----------
 function diffDays(aYmd, bYmd) {
   const a = new Date(aYmd + "T00:00:00");
   const b = new Date(bYmd + "T00:00:00");
@@ -224,6 +286,21 @@ async function logHabit(habitKey, habitLabel, points) {
   }
 
   const today = toYMD(new Date());
+
+  // 🚶 SPECIAL RULE FOR STEPS (only one of the two options per day)
+  if (habitKey.startsWith("steps")) {
+    const { data: existingSteps } = await supabaseClient
+      .from("habit_logs")
+      .select("habit_key")
+      .eq("user_id", user.id)
+      .eq("log_date", today)
+      .in("habit_key", ["steps_5k", "steps_10k"]);
+
+    if (existingSteps && existingSteps.length > 0) {
+      showAlreadyLogged("Steps");
+      return;
+    }
+  }
 
   // 1) Insert habit log (unique constraint blocks duplicates per habit/day)
   const { error: insErr } = await supabaseClient
@@ -252,10 +329,7 @@ async function logHabit(habitKey, habitLabel, points) {
     return;
   }
 
-  // 3) Compute streak:
-  // - if last_checkin is today => streak unchanged
-  // - if last_checkin is yesterday => streak +1
-  // - else => streak = 1 (because they logged at least 1 habit today)
+  // 3) Compute streak
   let newStreak = 1;
   const last = prof.last_checkin; // YYYY-MM-DD or null
 
@@ -288,11 +362,25 @@ async function logHabit(habitKey, habitLabel, points) {
   }
 
   showGame(updated);
+
+  // Update local "today" set + gray out buttons immediately
+  todaysHabits.add(habitKey);
+  if (habitKey === "steps_5k" || habitKey === "steps_10k") todaysHabits.add("steps");
+  updateHabitButtonsFromTodaysHabits();
+
   setGameMsg(`Logged "${habitLabel}" ✅ +${points} pts`);
 }
 
 // ---------- BUTTON WIRING ----------
-btnSteps?.addEventListener("click", openStepsModal);
+btnSteps?.addEventListener("click", () => {
+  // If steps already done today, show popup instead of modal
+  const stepsDone = todaysHabits.has("steps") || todaysHabits.has("steps_5k") || todaysHabits.has("steps_10k");
+  if (stepsDone) {
+    showAlreadyLogged("Steps");
+    return;
+  }
+  openStepsModal();
+});
 
 btnSteps5k?.addEventListener("click", async () => {
   closeStepsModal();
@@ -335,6 +423,7 @@ btnSleep?.addEventListener("click", () => logHabit("sleep", "7–8 hrs Sleep", 1
       user.user_metadata?.emoji || "👤"
     );
     showGame(profile);
+    await loadTodaysHabitsAndUpdateUI();
   } catch (e) {
     showAuth();
     setMsg(`Session error: ${e?.message || e}`);
