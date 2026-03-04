@@ -15,19 +15,56 @@
   <style>
     * { font-family: 'Outfit', sans-serif; }
 
-    /* Grayed-out buttons when disabled */
+    /* Disabled look, but still clickable so we can show toast */
+    button:disabled,
     .btn-disabled {
-      opacity: 0.45 !important;
-      filter: grayscale(0.25);
+      opacity: 0.35 !important;
+      filter: grayscale(0.6) !important;
       cursor: not-allowed !important;
+      pointer-events: auto !important;
       transform: none !important;
       box-shadow: none !important;
+    }
+
+    /* League border styles (player card outline) */
+    .league-bronze { border: 3px solid #cd7f32 !important; }
+    .league-silver { border: 3px solid #c0c0c0 !important; }
+    .league-gold   { border: 3px solid #ffd700 !important; }
+    .league-purple { border: 3px solid #a855f7 !important; }
+
+    .league-rainbow {
+      border: 3px solid transparent !important;
+      background:
+        linear-gradient(rgba(15,23,42,0.85), rgba(15,23,42,0.85)) padding-box,
+        linear-gradient(90deg, #ff3b3b, #ff9f1c, #ffe74c, #3dff7a, #38bdf8, #a855f7) border-box;
+      background-clip: padding-box, border-box;
+      background-origin: padding-box, border-box;
+      position: relative;
+    }
+
+    /* subtle animated shimmer for champion */
+    .league-rainbow::after {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border-radius: 1rem;
+      background: linear-gradient(90deg, rgba(255,255,255,0.0), rgba(255,255,255,0.25), rgba(255,255,255,0.0));
+      filter: blur(6px);
+      animation: shimmer 2.5s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-60%); opacity: 0.2; }
+      50% { opacity: 0.35; }
+      100% { transform: translateX(60%); opacity: 0.2; }
     }
   </style>
 </head>
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
-  <div class="max-w-3xl mx-auto">
+  <div class="max-w-6xl mx-auto">
+
+    <!-- Header -->
     <header class="text-center mb-8">
       <h1 class="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
         Health Challenge League
@@ -36,7 +73,7 @@
     </header>
 
     <!-- AUTH BOX -->
-    <div id="auth-box" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-6">
+    <div id="auth-box" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-6 max-w-xl mx-auto">
       <div class="space-y-2">
         <h2 class="text-xl font-bold">Create account</h2>
 
@@ -77,45 +114,127 @@
     </div>
 
     <!-- GAME BOX -->
-    <div id="game-box" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6 mt-6 space-y-6">
-      <!-- Top bar -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div id="game-box" class="hidden space-y-6">
+
+      <!-- Top Bar -->
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 flex items-center justify-between">
         <div>
           <div class="text-slate-400 text-sm">Logged in as</div>
-          <div id="whoami" class="text-xl font-bold"></div>
+          <div id="whoami" class="text-2xl font-extrabold"></div>
         </div>
-
         <button id="btn-logout" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">
           Log out
         </button>
       </div>
 
-      <!-- Stats -->
-      <div class="grid grid-cols-2 gap-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
-          <div class="text-slate-400 text-xs">Total Points</div>
-          <div id="stat-points" class="text-3xl font-extrabold text-amber-400">0</div>
+      <!-- Main Grid -->
+      <div class="grid lg:grid-cols-3 gap-6">
+
+        <!-- Profile Panel -->
+        <div id="player-card" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 league-bronze">
+          <div class="flex items-start gap-4">
+            <div class="w-20 h-20 rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden flex items-center justify-center">
+              <img id="avatar-img" class="w-full h-full object-cover hidden" alt="Avatar" />
+              <div id="avatar-fallback" class="text-slate-400 font-bold">Avatar</div>
+            </div>
+
+            <div class="flex-1">
+              <div class="text-slate-400 text-xs">Current League Tier</div>
+              <div id="league-name" class="text-2xl font-extrabold">Rookie</div>
+              <div class="text-slate-400 text-xs mt-1">This updates automatically as points increase.</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 mt-6">
+            <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center">
+              <div class="text-xs text-slate-400">Streak</div>
+              <div id="stat-streak" class="text-3xl font-extrabold text-amber-400">0</div>
+            </div>
+            <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center">
+              <div class="text-xs text-slate-400">Achievements</div>
+              <div id="stat-achievements" class="text-3xl font-extrabold text-white">0</div>
+            </div>
+            <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 text-center">
+              <div class="text-xs text-slate-400">Points</div>
+              <div id="stat-points" class="text-3xl font-extrabold text-emerald-400">0</div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <div class="text-slate-300 font-semibold mb-2">Update profile photo</div>
+            <input id="avatar-input" type="file" accept="image/*" class="block w-full text-sm text-slate-300" />
+            <div class="text-xs text-slate-400 mt-1">Square crop is automatic.</div>
+            <div id="avatar-status" class="text-xs text-slate-300 mt-2"></div>
+          </div>
         </div>
-        <div class="bg-slate-900 border border-slate-700 rounded-xl p-4">
-          <div class="text-slate-400 text-xs">Current Streak</div>
-          <div class="text-3xl font-extrabold text-emerald-400">
-            <span id="stat-streak">0</span><span class="text-base font-bold text-slate-400"> days</span>
+
+        <!-- Habits Panel -->
+        <div class="lg:col-span-2 bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+          <div class="flex items-end justify-between mb-4">
+            <div>
+              <h2 class="text-3xl font-extrabold">Daily Habits</h2>
+              <div class="text-slate-400 text-sm">Log each habit once per day</div>
+            </div>
+            <div class="text-xs text-slate-400">Steps: choose one</div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <button id="btn-log-water" class="px-4 py-4 rounded-xl bg-cyan-700 hover:bg-cyan-600 font-bold transition">
+              Log Water (+5)
+            </button>
+            <button id="btn-log-protein" class="px-4 py-4 rounded-xl bg-red-700 hover:bg-red-600 font-bold transition">
+              Log Protein (+8)
+            </button>
+
+            <button id="btn-log-steps-5k" class="px-4 py-4 rounded-xl bg-blue-700 hover:bg-blue-600 font-bold transition">
+              Log Steps 5K–9.9K (+6)
+            </button>
+            <button id="btn-log-steps-10k" class="px-4 py-4 rounded-xl bg-blue-900 hover:bg-blue-800 font-bold transition">
+              Log Steps 10K+ (+10)
+            </button>
+
+            <button id="btn-log-workout" class="px-4 py-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 font-bold transition">
+              Log Workout (+12)
+            </button>
+            <button id="btn-log-reading" class="px-4 py-4 rounded-xl bg-orange-700 hover:bg-orange-600 font-bold transition">
+              Log Reading (+9)
+            </button>
+
+            <button id="btn-log-sleep" class="px-4 py-4 rounded-xl bg-indigo-700 hover:bg-indigo-600 font-bold transition">
+              Log Sleep (+11)
+            </button>
+            <button id="btn-log-no-sugar" class="px-4 py-4 rounded-xl bg-pink-700 hover:bg-pink-600 font-bold transition">
+              Log No Added Sugar (+7)
+            </button>
+
+            <button id="btn-log-no-coke" class="col-span-2 px-4 py-4 rounded-xl bg-amber-700 hover:bg-amber-600 font-bold transition">
+              Log No Coke (+5)
+            </button>
+          </div>
+        </div>
+
+        <!-- Leaderboard Panel -->
+        <div class="lg:col-span-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-3xl font-extrabold flex items-center gap-2">🏆 Global Leaderboard</h2>
+            <button id="btn-leaderboard-refresh" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">
+              Refresh
+            </button>
+          </div>
+
+          <div id="leaderboard-list" class="space-y-3">
+            <div class="text-slate-400">No data yet. Click Refresh.</div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Habits -->
-      <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 space-y-4">
-        <div class="flex items-end justify-between">
-          <div>
-            <h2 class="text-2xl font-bold">Daily Habits</h2>
-            <p class="text-slate-400 text-sm">Each habit can be logged once per day.</p>
-          </div>
-          <div class="text-xs text-slate-400">Steps: choose one</div>
-        </div>
+    <!-- Toast popup (bottom-right) -->
+    <div id="toast" class="hidden fixed bottom-4 right-4 px-5 py-4 rounded-xl shadow-2xl border text-sm"></div>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <button id="btn-log-water"
-            class="px-4 py-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 font-bold transition">
-            💧 Water (+5)
-         
+  </div>
+
+  <!-- Your app code -->
+  <script src="./app.js"></script>
+</body>
+</html>
