@@ -5,26 +5,21 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Health Challenge League</title>
 
-  <!-- Tailwind CDN (fine for MVP) -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-
-  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-  <style>
-    * { font-family: 'Outfit', sans-serif; }
-  </style>
+  <style>*{font-family:'Outfit',sans-serif}</style>
 </head>
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
-  <div class="max-w-2xl mx-auto">
+  <div class="max-w-3xl mx-auto">
     <h1 class="text-4xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
       Health Challenge League
     </h1>
     <p class="text-slate-400 mb-8">Sign up, verify your email, then log in to play.</p>
 
-    <!-- AUTH BOX -->
+    <!-- AUTH -->
     <div id="auth-box" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-6">
       <div class="space-y-2">
         <h2 class="text-xl font-bold">Create account</h2>
@@ -52,7 +47,7 @@
       <div id="auth-msg" class="text-sm text-slate-300"></div>
     </div>
 
-    <!-- GAME BOX -->
+    <!-- GAME -->
     <div id="game-box" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6 mt-6 space-y-4">
       <div class="flex items-center justify-between">
         <div>
@@ -64,58 +59,71 @@
         </button>
       </div>
 
-      <!-- Stats -->
-      <div class="p-4 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="text-slate-400 text-sm">Points</div>
-            <div id="points" class="text-3xl font-extrabold text-amber-400">0</div>
+      <!-- Top row -->
+      <div class="grid md:grid-cols-3 gap-4">
+        <!-- Stats -->
+        <div class="md:col-span-2 p-4 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-slate-400 text-sm">Points</div>
+              <div id="points" class="text-3xl font-extrabold text-amber-400">0</div>
+            </div>
+            <div class="text-right">
+              <div class="text-slate-400 text-sm">Streak</div>
+              <div id="streak" class="text-3xl font-extrabold text-emerald-400">0 🔥</div>
+              <div id="best-streak" class="text-xs text-slate-400">Best: 0</div>
+            </div>
           </div>
-          <div class="text-right">
-            <div class="text-slate-400 text-sm">Streak</div>
-            <div id="streak" class="text-3xl font-extrabold text-emerald-400">0 🔥</div>
-            <div id="best-streak" class="text-xs text-slate-400">Best: 0</div>
+          <div id="game-msg" class="text-sm text-slate-300"></div>
+          <div class="text-xs text-slate-500">
+            Streak counts if you log at least 1 habit today. Each habit can be logged once per day.
           </div>
         </div>
-        <div id="game-msg" class="text-sm text-slate-300"></div>
-        <div class="text-xs text-slate-500">
-          Streak counts if you log at least 1 habit today. Each habit can be logged once per day.
+
+        <!-- Mini game -->
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
+          <div class="font-bold flex items-center justify-between">
+            <span>🧠 Daily Mini-Game</span>
+            <span id="minigame-status" class="text-xs text-slate-400"></span>
+          </div>
+          <p class="text-xs text-slate-400">Win once per day for bonus points.</p>
+          <button id="btn-minigame" class="w-full font-bold py-3 rounded-lg bg-purple-600 hover:bg-purple-500 transition-all">
+            Play Today
+          </button>
+          <div id="minigame-msg" class="text-xs text-slate-300"></div>
+        </div>
+      </div>
+
+      <!-- Today progress + Achievements -->
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-bold">📅 Today</div>
+            <div id="today-count" class="text-sm font-bold text-emerald-300">0/8</div>
+          </div>
+          <div id="today-list" class="space-y-2 text-sm text-slate-200"></div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <div class="font-bold">🏅 Achievements</div>
+            <div id="achv-count" class="text-xs text-slate-400"></div>
+          </div>
+          <div id="achv-earned" class="space-y-2 text-sm"></div>
+          <div class="mt-3 text-xs text-slate-500">More unlock as you play (streaks, points, habit milestones).</div>
         </div>
       </div>
 
       <!-- Habits Grid -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <button id="btn-steps" data-habit="steps" class="habit-btn font-bold py-3 rounded-lg bg-blue-600 hover:bg-blue-500 transition-all">
-          🚶 Steps (+6 / +10)
-        </button>
-
-        <button id="btn-protein" data-habit="protein" class="habit-btn font-bold py-3 rounded-lg bg-red-600 hover:bg-red-500 transition-all">
-          🥩 Protein (+8)
-        </button>
-
-        <button id="btn-water" data-habit="water" class="habit-btn font-bold py-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 transition-all">
-          💧 Water (+5)
-        </button>
-
-        <button id="btn-no-sugar" data-habit="no_sugar" class="habit-btn font-bold py-3 rounded-lg bg-pink-600 hover:bg-pink-500 transition-all">
-          🍬 No Sugar (+7)
-        </button>
-
-        <button id="btn-no-coke" data-habit="no_coke" class="habit-btn font-bold py-3 rounded-lg bg-amber-600 hover:bg-amber-500 transition-all">
-          🥤 No Coke (+5)
-        </button>
-
-        <button id="btn-workout" data-habit="workout" class="habit-btn font-bold py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition-all">
-          💪 Workout (+12)
-        </button>
-
-        <button id="btn-reading" data-habit="reading" class="habit-btn font-bold py-3 rounded-lg bg-orange-600 hover:bg-orange-500 transition-all">
-          📚 Reading (+9)
-        </button>
-
-        <button id="btn-sleep" data-habit="sleep" class="habit-btn font-bold py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-all">
-          😴 Sleep (+11)
-        </button>
+        <button id="btn-steps" data-habit="steps" class="habit-btn font-bold py-3 rounded-lg bg-blue-600 hover:bg-blue-500 transition-all">🚶 Steps (+6 / +10)</button>
+        <button id="btn-protein" data-habit="protein" class="habit-btn font-bold py-3 rounded-lg bg-red-600 hover:bg-red-500 transition-all">🥩 Protein (+8)</button>
+        <button id="btn-water" data-habit="water" class="habit-btn font-bold py-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 transition-all">💧 Water (+5)</button>
+        <button id="btn-no-sugar" data-habit="no_sugar" class="habit-btn font-bold py-3 rounded-lg bg-pink-600 hover:bg-pink-500 transition-all">🍬 No Sugar (+7)</button>
+        <button id="btn-no-coke" data-habit="no_coke" class="habit-btn font-bold py-3 rounded-lg bg-amber-600 hover:bg-amber-500 transition-all">🥤 No Coke (+5)</button>
+        <button id="btn-workout" data-habit="workout" class="habit-btn font-bold py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition-all">💪 Workout (+12)</button>
+        <button id="btn-reading" data-habit="reading" class="habit-btn font-bold py-3 rounded-lg bg-orange-600 hover:bg-orange-500 transition-all">📚 Reading (+9)</button>
+        <button id="btn-sleep" data-habit="sleep" class="habit-btn font-bold py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-all">😴 Sleep (+11)</button>
       </div>
     </div>
   </div>
@@ -142,7 +150,7 @@
     </div>
   </div>
 
-  <!-- “Already logged” popup -->
+  <!-- Already modal -->
   <div id="already-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-gradient-to-br from-amber-600 to-orange-600 rounded-2xl p-8 w-full max-w-md text-center shadow-2xl border border-amber-400/50">
       <div class="text-6xl mb-4">⏰</div>
@@ -152,6 +160,49 @@
       <button id="btn-already-close" class="w-full bg-white text-amber-600 font-bold py-3 rounded-lg hover:bg-amber-50 transition-all text-lg">
         Got It 😊
       </button>
+    </div>
+  </div>
+
+  <!-- Achievement toast -->
+  <div id="achv-toast" class="hidden fixed bottom-4 right-4 max-w-sm w-full z-50">
+    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-4 shadow-2xl border border-emerald-400/30">
+      <div class="flex items-start gap-3">
+        <div id="achv-toast-icon" class="text-3xl">🏅</div>
+        <div class="flex-1">
+          <div class="font-extrabold text-white">Achievement Unlocked!</div>
+          <div id="achv-toast-name" class="font-bold text-white"></div>
+          <div id="achv-toast-desc" class="text-xs text-emerald-100 mt-1"></div>
+        </div>
+        <button id="achv-toast-close" class="text-white/70 hover:text-white text-xl">×</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mini-game modal -->
+  <div id="minigame-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-gradient-to-br from-purple-700 to-fuchsia-700 rounded-2xl p-8 w-full max-w-md text-center shadow-2xl border border-purple-300/30">
+      <div class="text-6xl mb-2">🧠</div>
+      <h3 class="text-2xl font-bold text-white mb-2">Daily Word Scramble</h3>
+      <p class="text-purple-100 text-sm mb-4">Unscramble the word to earn <span class="font-bold">+20</span> points.</p>
+
+      <div class="bg-white/15 border border-white/20 rounded-xl p-4 mb-4">
+        <div class="text-xs text-purple-100">Scrambled</div>
+        <div id="scramble-text" class="text-3xl font-extrabold tracking-widest text-white mt-1"></div>
+      </div>
+
+      <input id="minigame-input" type="text" placeholder="Type your answer..."
+        class="w-full px-4 py-3 rounded-lg bg-slate-900/70 border border-white/20 text-white placeholder-purple-200 focus:ring-2 focus:ring-purple-300 focus:outline-none" />
+
+      <div class="grid grid-cols-2 gap-3 mt-4">
+        <button id="btn-minigame-submit" class="font-bold py-3 rounded-lg bg-white text-purple-700 hover:bg-purple-50 transition-all">
+          Submit
+        </button>
+        <button id="btn-minigame-cancel" class="font-bold py-3 rounded-lg bg-purple-900/40 text-purple-100 hover:bg-purple-900/60 transition-all">
+          Cancel
+        </button>
+      </div>
+
+      <div id="minigame-modal-msg" class="text-sm text-purple-100 mt-4"></div>
     </div>
   </div>
 
