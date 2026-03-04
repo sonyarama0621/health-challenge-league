@@ -5,14 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Health Challenge League</title>
 
-  <!-- Optional: prevents favicon.ico 404 in console -->
   <link rel="icon" href="data:,">
 
-  <!-- Tailwind CDN (fine for MVP) -->
+  <!-- Tailwind (fine for MVP) -->
   <script src="https://cdn.tailwindcss.com/3.4.17" defer></script>
 
-  <!-- Supabase JS (UMD build for browsers) -->
-  <!-- This is the reliable one for GitHub Pages -->
+  <!-- Supabase UMD (browser build) -->
   <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
 
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet" />
@@ -25,18 +23,18 @@
       opacity: 0.35 !important;
       filter: grayscale(0.6) !important;
       cursor: not-allowed !important;
-      pointer-events: auto !important;
+      pointer-events: auto !important; /* important */
       transform: none !important;
       box-shadow: none !important;
     }
 
-    /* League border styles (player card outline) */
-    .league-bronze { border: 3px solid #cd7f32 !important; }
-    .league-silver { border: 3px solid #c0c0c0 !important; }
-    .league-gold   { border: 3px solid #ffd700 !important; }
-    .league-purple { border: 3px solid #a855f7 !important; }
+    /* Tier border styles */
+    .tier-rookie { border: 3px solid #cd7f32 !important; }  /* bronze */
+    .tier-elite  { border: 3px solid #c0c0c0 !important; }  /* silver */
+    .tier-pro    { border: 3px solid #ffd700 !important; }  /* gold */
+    .tier-mvp    { border: 3px solid #a855f7 !important; }  /* purple */
 
-    .league-rainbow {
+    .tier-champion {
       border: 3px solid transparent !important;
       background:
         linear-gradient(rgba(15,23,42,0.85), rgba(15,23,42,0.85)) padding-box,
@@ -45,41 +43,24 @@
       background-origin: padding-box, border-box;
       position: relative;
     }
-
-    .league-rainbow::after {
-      content: "";
-      position: absolute;
-      inset: -3px;
-      border-radius: 1rem;
-      background: linear-gradient(90deg, rgba(255,255,255,0.0), rgba(255,255,255,0.25), rgba(255,255,255,0.0));
-      filter: blur(6px);
-      animation: shimmer 2.5s linear infinite;
-      pointer-events: none;
-    }
-    @keyframes shimmer {
-      0% { transform: translateX(-60%); opacity: 0.2; }
-      50% { opacity: 0.35; }
-      100% { transform: translateX(60%); opacity: 0.2; }
-    }
   </style>
 </head>
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
-  <div class="max-w-6xl mx-auto">
+  <div class="max-w-6xl mx-auto space-y-6">
 
     <!-- Header -->
-    <header class="text-center mb-8">
+    <header class="text-center">
       <h1 class="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
         Health Challenge League
       </h1>
-      <p class="text-slate-400 mt-2">Create an account, verify your email, then log in to play.</p>
+      <p class="text-slate-400 mt-2">Sign up, verify your email, then log in.</p>
     </header>
 
     <!-- AUTH BOX -->
     <div id="auth-box" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-6 max-w-xl mx-auto">
       <div class="space-y-2">
         <h2 class="text-xl font-bold">Create account</h2>
-
         <input id="su-email" type="email" placeholder="Email"
           class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
         <input id="su-pass" type="password" placeholder="Password"
@@ -89,24 +70,19 @@
 
         <button id="btn-signup"
           class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 transition">
-          Sign up (emails a verification link)
+          Sign up (emails verification link)
         </button>
-
-        <p class="text-xs text-slate-400">
-          After signup, check your inbox and click the verification link.
-        </p>
+        <p class="text-xs text-slate-400">After signup, check your inbox and click the verification link.</p>
       </div>
 
       <hr class="border-slate-700" />
 
       <div class="space-y-2">
         <h2 class="text-xl font-bold">Log in</h2>
-
         <input id="li-email" type="email" placeholder="Email"
           class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
         <input id="li-pass" type="password" placeholder="Password"
           class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-
         <button id="btn-login"
           class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 transition">
           Log in
@@ -124,17 +100,26 @@
         <div>
           <div class="text-slate-400 text-sm">Logged in as</div>
           <div id="whoami" class="text-2xl font-extrabold"></div>
+          <div class="text-slate-400 text-xs mt-1">
+            Mode: <span id="mode-label" class="text-white font-semibold">—</span>
+            <span id="league-label-wrap" class="hidden"> • League: <span id="league-label" class="text-white font-semibold">—</span></span>
+          </div>
         </div>
-        <button id="btn-logout" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">
-          Log out
-        </button>
+        <div class="flex items-center gap-2">
+          <button id="btn-switch-league" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">
+            Switch / Join
+          </button>
+          <button id="btn-logout" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">
+            Log out
+          </button>
+        </div>
       </div>
 
       <!-- Main Grid -->
       <div class="grid lg:grid-cols-3 gap-6">
 
         <!-- Profile Panel -->
-        <div id="player-card" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 league-bronze">
+        <div id="player-card" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 tier-rookie">
           <div class="flex items-start gap-4">
             <div class="w-20 h-20 rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden flex items-center justify-center">
               <img id="avatar-img" class="w-full h-full object-cover hidden" alt="Avatar" />
@@ -142,9 +127,9 @@
             </div>
 
             <div class="flex-1">
-              <div class="text-slate-400 text-xs">Current League Tier</div>
-              <div id="league-name" class="text-2xl font-extrabold">Rookie</div>
-              <div class="text-slate-400 text-xs mt-1">This updates automatically as points increase.</div>
+              <div class="text-slate-400 text-xs">Tier</div>
+              <div id="tier-name" class="text-2xl font-extrabold">Rookie</div>
+              <div class="text-slate-400 text-xs mt-1">Based on points (always).</div>
             </div>
           </div>
 
@@ -169,6 +154,21 @@
             <div class="text-xs text-slate-400 mt-1">Square crop is automatic.</div>
             <div id="avatar-status" class="text-xs text-slate-300 mt-2"></div>
           </div>
+
+          <div id="invite-box" class="hidden mt-6 bg-slate-900 border border-slate-700 rounded-xl p-4">
+            <div class="text-sm font-bold text-amber-300">Invite friends</div>
+            <div class="text-xs text-slate-400 mt-1">Share this code or link:</div>
+            <div class="mt-2 space-y-2">
+              <div class="text-sm">
+                Code: <span id="invite-code" class="font-extrabold text-white"></span>
+              </div>
+              <input id="invite-link" readonly
+                class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-200" />
+              <button id="btn-copy-invite" class="w-full px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">
+                Copy invite link
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Habits Panel -->
@@ -181,7 +181,7 @@
             <div class="text-xs text-slate-400">Steps: choose one</div>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div id="habits-grid" class="grid grid-cols-2 gap-4">
             <button id="btn-log-water" class="px-4 py-4 rounded-xl bg-cyan-700 hover:bg-cyan-600 font-bold transition">
               Log Water (+5)
             </button>
@@ -214,12 +214,16 @@
               Log No Coke (+5)
             </button>
           </div>
+
+          <div class="mt-4 text-xs text-slate-400">
+            Streak rule: log <span class="text-white font-semibold">at least 1 habit</span> today to keep streak. Miss a day → streak resets to 0.
+          </div>
         </div>
 
-        <!-- Leaderboard Panel -->
-        <div class="lg:col-span-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+        <!-- LEAGUE LEADERBOARD (hidden in solo mode) -->
+        <div id="league-board" class="lg:col-span-3 bg-slate-800/60 border border-slate-700 rounded-2xl p-6 hidden">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-3xl font-extrabold flex items-center gap-2">🏆 Global Leaderboard</h2>
+            <h2 class="text-3xl font-extrabold flex items-center gap-2">🏆 League Leaderboard</h2>
             <button id="btn-leaderboard-refresh" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">
               Refresh
             </button>
@@ -232,11 +236,91 @@
       </div>
     </div>
 
-    <!-- Toast popup (bottom-right) -->
+    <!-- MODE / LEAGUE MODAL -->
+    <div id="mode-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-2xl font-extrabold">Choose how you want to play</h3>
+          <button id="btn-close-mode" class="text-slate-400 hover:text-white text-2xl">×</button>
+        </div>
+
+        <div class="space-y-4">
+          <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
+            <div class="font-bold text-lg">Solo Challenge</div>
+            <div class="text-slate-400 text-sm">No leaderboard — just your personal stats & tiers.</div>
+            <button id="btn-start-solo" class="mt-3 w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold">
+              Start Solo
+            </button>
+          </div>
+
+          <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
+            <div class="font-bold text-lg">Create a Private League</div>
+            <div class="text-slate-400 text-sm">You’ll be the owner. You get an invite code to share.</div>
+            <input id="new-league-name" type="text" placeholder="League name (ex: Rama Squad)"
+              class="mt-3 w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700" />
+            <button id="btn-create-league" class="mt-3 w-full py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold">
+              Create League
+            </button>
+          </div>
+
+          <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
+            <div class="font-bold text-lg">Join a Private League</div>
+            <div class="text-slate-400 text-sm">Enter the invite code a friend sent you.</div>
+            <input id="join-code" type="text" placeholder="Invite code (ex: A1B2C3)"
+              class="mt-3 w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 uppercase" />
+            <button id="btn-join-league" class="mt-3 w-full py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold">
+              Join League
+            </button>
+          </div>
+
+          <div class="text-xs text-slate-400">
+            Already in leagues? Use <span class="text-white font-semibold">Switch / Join</span> anytime.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAYER PROFILE MODAL -->
+    <div id="profile-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-2xl font-extrabold">Player Profile</h3>
+          <button id="btn-close-profile" class="text-slate-400 hover:text-white text-2xl">×</button>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="w-20 h-20 rounded-2xl bg-slate-800 border border-slate-700 overflow-hidden flex items-center justify-center">
+            <img id="pm-avatar" class="w-full h-full object-cover hidden" alt="Avatar">
+            <div id="pm-avatar-fallback" class="text-slate-400 font-bold">Avatar</div>
+          </div>
+          <div class="flex-1">
+            <div id="pm-name" class="text-2xl font-extrabold">—</div>
+            <div id="pm-tier" class="text-slate-300 text-sm">—</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mt-6">
+          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+            <div class="text-xs text-slate-400">Streak</div>
+            <div id="pm-streak" class="text-2xl font-extrabold text-amber-400">0</div>
+          </div>
+          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+            <div class="text-xs text-slate-400">Achievements</div>
+            <div id="pm-ach" class="text-2xl font-extrabold">0</div>
+          </div>
+          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+            <div class="text-xs text-slate-400">Points</div>
+            <div id="pm-points" class="text-2xl font-extrabold text-emerald-400">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
     <div id="toast" class="hidden fixed bottom-4 right-4 px-5 py-4 rounded-xl shadow-2xl border text-sm"></div>
+
   </div>
 
-  <!-- Your app code (defer ensures it waits for supabase.js) -->
   <script src="./app.js" defer></script>
 </body>
 </html>
