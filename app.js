@@ -1,6 +1,6 @@
-// ===== Supabase client (safe against double-load) =====
+// ===== Supabase client =====
 const SUPABASE_URL = "https://onndovdpdaccsavbkykm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ubmRvdmRwZGFjY3NhdmJreWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjI2NTksImV4cCI6MjA4ODEzODY1OX0.7dnpa5q34PbW34tF1U83NRJGWRyR70twlDNxgXMOoeE";
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY_HERE";
 
 window.__hcl = window.__hcl || {};
 window.__hcl.sb =
@@ -8,29 +8,27 @@ window.__hcl.sb =
 
 const sb = window.__hcl.sb;
 
-// ===== Helpers =====
+// ===== helpers =====
 const $ = (id) => document.getElementById(id);
 
-function todayKeyUTC() {
-  // consistent “day key” for everyone (prevents timezone weirdness)
+function todayKey() {
   const d = new Date();
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
-function toast(msg, isOk = true) {
+function toast(msg, ok = true) {
   const el = $("toast");
-  if (!el) {
-    alert(msg);
-    return;
-  }
+  if (!el) return alert(msg);
+
   el.textContent = msg;
   el.className =
     "fixed bottom-4 right-4 px-4 py-3 rounded-xl shadow-xl text-sm border " +
-    (isOk ? "bg-emerald-700/80 border-emerald-400/40" : "bg-rose-700/80 border-rose-400/40");
+    (ok
+      ? "bg-emerald-700/80 border-emerald-400/40"
+      : "bg-rose-700/80 border-rose-400/40");
+
   el.classList.remove("hidden");
+
   setTimeout(() => el.classList.add("hidden"), 3000);
 }
 
@@ -49,41 +47,37 @@ function showGame() {
   $("game-box")?.classList.remove("hidden");
 }
 
-// ===== Habits config =====
+// ===== habits =====
 const HABITS = [
-  { key: "water", label: "Log Water", points: 5, group: null, btn: "btn-log-water" },
-  { key: "protein", label: "Log Protein", points: 8, group: null, btn: "btn-log-protein" },
-  { key: "steps_5k", label: "Log Steps 5K–9.9K", points: 6, group: "steps", btn: "btn-log-steps-5k" },
-  { key: "steps_10k", label: "Log Steps 10K+", points: 10, group: "steps", btn: "btn-log-steps-10k" },
-  { key: "workout", label: "Log Workout", points: 12, group: null, btn: "btn-log-workout" },
-  { key: "reading", label: "Log Reading", points: 9, group: null, btn: "btn-log-reading" },
-  { key: "sleep", label: "Log Sleep", points: 11, group: null, btn: "btn-log-sleep" },
-  { key: "no_sugar", label: "Log No Added Sugar", points: 7, group: null, btn: "btn-log-no-sugar" },
-  { key: "no_coke", label: "Log No Coke", points: 5, group: null, btn: "btn-log-no-coke" },
+  { key: "water", btn: "btn-log-water", points: 5 },
+  { key: "protein", btn: "btn-log-protein", points: 8 },
+  { key: "steps_5k", btn: "btn-log-steps-5k", points: 6, group: "steps" },
+  { key: "steps_10k", btn: "btn-log-steps-10k", points: 10, group: "steps" },
+  { key: "workout", btn: "btn-log-workout", points: 12 },
+  { key: "reading", btn: "btn-log-reading", points: 9 },
+  { key: "sleep", btn: "btn-log-sleep", points: 11 },
+  { key: "no_sugar", btn: "btn-log-no-sugar", points: 7 },
+  { key: "no_coke", btn: "btn-log-no-coke", points: 5 },
 ];
 
-function setBtnDisabled(btnEl, disabled) {
-  if (!btnEl) return;
-  btnEl.disabled = !!disabled;
-  btnEl.classList.toggle("btn-disabled", !!disabled);
-}
+// ===== state =====
+let currentUser = null;
 
-// ===== DB helpers =====
+// ===== profile =====
 async function ensureProfile(user) {
-  const { data: existing, error: e1 } = await sb
+  const { data, error } = await sb
     .from("players")
-    .select("user_id,email,name,avatar_url,points,current_streak")
+    .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (e1) throw e1;
-  if (existing) return existing;
+  if (error) throw error;
+  if (data) return data;
 
-  const name = user.user_metadata?.name || "Player";
   const profile = {
     user_id: user.id,
     email: user.email,
-    name,
+    name: user.user_metadata?.name || "Player",
     points: 0,
     current_streak: 0,
   };
@@ -98,275 +92,196 @@ async function ensureProfile(user) {
   return inserted;
 }
 
-async function fetchTodayCheckins(userId) {
-  const day = todayKeyUTC();
+// ===== fetch today's logs =====
+async function fetchTodayLogs(userId) {
+  const today = todayKey();
+
   const { data, error } = await sb
     .from("checkins")
     .select("habit_key")
     .eq("user_id", userId)
-    .eq("day_key", day);
+    .eq("checkin_date", today);
 
   if (error) throw error;
-  return new Set((data || []).map((r) => r.habit_key));
+
+  return new Set(data.map((x) => x.habit_key));
 }
 
-async function logHabit({ userId, habitKey, points, group }) {
-  const day = todayKeyUTC();
+// ===== log habit =====
+async function logHabit(userId, habit) {
+  const today = todayKey();
 
-  // 1) Prevent duplicate habit today
-  // Also prevent both step options in same day (group = 'steps')
-  const todays = await fetchTodayCheckins(userId);
+  const existing = await fetchTodayLogs(userId);
 
-  if (todays.has(habitKey)) {
-    return { ok: false, reason: "already_logged" };
+  if (existing.has(habit.key)) {
+    toast("You already logged that habit today.", false);
+    return;
   }
 
-  if (group === "steps") {
-    if (todays.has("steps_5k") || todays.has("steps_10k")) {
-      return { ok: false, reason: "steps_already_logged" };
+  if (habit.group === "steps") {
+    if (existing.has("steps_5k") || existing.has("steps_10k")) {
+      toast("You already logged your steps today.", false);
+      return;
     }
   }
 
-  // 2) Insert checkin row
-  const { error: e1 } = await sb.from("checkins").insert({
+  const { error } = await sb.from("checkins").insert({
     user_id: userId,
-    day_key: day,
-    habit_key: habitKey,
-    points: points,
+    habit_key: habit.key,
+    points: habit.points,
+    checkin_date: today, // ✅ required column
+    day_key: today
   });
-  if (e1) throw e1;
 
-  // 3) Update points
-  const { data: player, error: e2 } = await sb
+  if (error) {
+    toast("Error logging habit: " + error.message, false);
+    return;
+  }
+
+  await updatePlayerStats(userId, habit.points);
+
+  toast(`+${habit.points} points!`);
+  await refreshUI();
+}
+
+// ===== update player points + streak =====
+async function updatePlayerStats(userId, points) {
+  const { data: player } = await sb
     .from("players")
-    .select("points,current_streak,last_streak_day")
+    .select("*")
     .eq("user_id", userId)
     .single();
-  if (e2) throw e2;
 
-  const lastDay = player.last_streak_day || null;
+  const newPoints = (player.points || 0) + points;
 
-  // streak rules:
-  // - streak counts if you log at least 1 habit that day
-  // - if you miss a day, reset to 0, then today becomes 1
-  // - if you already logged something today, don’t increment again
   const yesterday = new Date();
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const yKey = `${yesterday.getUTCFullYear()}-${String(yesterday.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    yesterday.getUTCDate()
-  ).padStart(2, "0")}`;
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = yesterday.toISOString().slice(0, 10);
+
+  const today = todayKey();
 
   let newStreak = player.current_streak || 0;
 
-  if (lastDay === day) {
-    // already counted streak today (don’t increment)
-  } else if (lastDay === yKey) {
-    newStreak = newStreak + 1;
+  if (player.last_checkin_date === today) {
+    // already counted
+  } else if (player.last_checkin_date === yesterdayKey) {
+    newStreak += 1;
   } else {
     newStreak = 1;
   }
 
-  const newPoints = (player.points || 0) + points;
-
-  const { error: e3 } = await sb
+  await sb
     .from("players")
-    .update({ points: newPoints, current_streak: newStreak, last_streak_day: day })
+    .update({
+      points: newPoints,
+      current_streak: newStreak,
+      last_checkin_date: today,
+    })
     .eq("user_id", userId);
-
-  if (e3) throw e3;
-
-  return { ok: true, newPoints, newStreak, todays: await fetchTodayCheckins(userId) };
 }
 
-// ===== UI wiring =====
-let currentUser = null;
-
-function setProfileUI(profile) {
-  const who = $("whoami");
-  if (who) who.textContent = `${profile.name} (${profile.email})`;
-
-  const streakEl = $("stat-streak");
-  const ptsEl = $("stat-points");
-  if (streakEl) streakEl.textContent = String(profile.current_streak || 0);
-  if (ptsEl) ptsEl.textContent = String(profile.points || 0);
-}
-
-async function refreshDisabledButtons() {
+// ===== UI refresh =====
+async function refreshUI() {
   if (!currentUser) return;
 
-  // Always enable everything first (so you never get stuck)
-  for (const h of HABITS) setBtnDisabled($(h.btn), false);
+  const logs = await fetchTodayLogs(currentUser.id);
 
-  // Then disable the ones already logged today
-  const todays = await fetchTodayCheckins(currentUser.id);
+  HABITS.forEach((habit) => {
+    const btn = $(habit.btn);
+    if (!btn) return;
 
-  for (const h of HABITS) {
-    if (todays.has(h.key)) {
-      setBtnDisabled($(h.btn), true);
+    btn.disabled = logs.has(habit.key);
+
+    if (habit.group === "steps") {
+      if (logs.has("steps_5k") || logs.has("steps_10k")) {
+        btn.disabled = true;
+      }
     }
-  }
-
-  // Steps: if either steps option logged, disable both
-  if (todays.has("steps_5k") || todays.has("steps_10k")) {
-    setBtnDisabled($("btn-log-steps-5k"), true);
-    setBtnDisabled($("btn-log-steps-10k"), true);
-  }
+  });
 }
 
+// ===== attach habit buttons =====
 function wireHabitButtons() {
-  for (const h of HABITS) {
-    const btn = $(h.btn);
-    if (!btn) continue;
+  HABITS.forEach((habit) => {
+    const btn = $(habit.btn);
+    if (!btn) return;
 
-    // remove any previous handler (in case of hot reload / double attach)
-    btn.onclick = null;
-
-    btn.onclick = async () => {
-      if (!currentUser) {
-        toast("Please log in first.", false);
-        return;
-      }
-
-      // If disabled, show popup message too
-      if (btn.disabled) {
-        if (h.group === "steps") toast("You already logged your steps goal today.", false);
-        else toast(`You already logged ${h.label.replace("Log ", "")} today.`, false);
-        return;
-      }
-
-      try {
-        const result = await logHabit({
-          userId: currentUser.id,
-          habitKey: h.key,
-          points: h.points,
-          group: h.group,
-        });
-
-        if (!result.ok) {
-          if (result.reason === "steps_already_logged") toast("You already logged your steps goal today.", false);
-          else toast("You already logged that habit today.", false);
-
-          await refreshDisabledButtons();
-          return;
-        }
-
-        // Update stats on screen
-        const ptsEl = $("stat-points");
-        const streakEl = $("stat-streak");
-        if (ptsEl) ptsEl.textContent = String(result.newPoints);
-        if (streakEl) streakEl.textContent = String(result.newStreak);
-
-        toast(`✅ +${h.points} points!`);
-
-        await refreshDisabledButtons();
-      } catch (e) {
-        console.error(e);
-        toast(`Error logging habit: ${e.message || e}`, false);
-      }
-    };
-  }
+    btn.onclick = () => logHabit(currentUser.id, habit);
+  });
 }
 
-// ===== Auth wiring =====
-function wireAuthButtons() {
+// ===== auth =====
+function wireAuth() {
   $("btn-signup")?.addEventListener("click", async () => {
-    setAuthMsg("");
-
-    const email = $("su-email")?.value.trim().toLowerCase();
-    const password = $("su-pass")?.value;
-    const name = $("su-name")?.value.trim();
-    const emoji = $("su-emoji")?.value.trim();
-
-    if (!email || !password || !name) {
-      setAuthMsg("Please enter email, password, and display name.");
-      return;
-    }
-
-    const redirectTo = window.location.origin + window.location.pathname;
+    const email = $("su-email").value.trim();
+    const password = $("su-pass").value;
+    const name = $("su-name").value;
 
     const { error } = await sb.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectTo,
-        data: { name, emoji },
+        data: { name },
+        emailRedirectTo: window.location.href,
       },
     });
 
-    if (error) {
-      setAuthMsg(`Signup error: ${error.message}`);
-      return;
-    }
-
-    setAuthMsg("Signup successful! Check your email to verify, then come back and log in.");
+    if (error) setAuthMsg(error.message);
+    else setAuthMsg("Check your email to confirm your account.");
   });
 
   $("btn-login")?.addEventListener("click", async () => {
-    setAuthMsg("");
+    const email = $("li-email").value.trim();
+    const password = $("li-pass").value;
 
-    const email = $("li-email")?.value.trim().toLowerCase();
-    const password = $("li-pass")?.value;
-
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
-      setAuthMsg(`Login error: ${error.message}`);
+      setAuthMsg(error.message);
       return;
     }
 
     currentUser = data.user;
-    if (!currentUser) {
-      setAuthMsg("Login failed. Please try again.");
-      return;
-    }
 
-    try {
-      const profile = await ensureProfile(currentUser);
-      showGame();
-      setProfileUI(profile);
+    const profile = await ensureProfile(currentUser);
 
-      wireHabitButtons();
-      await refreshDisabledButtons();
-    } catch (e) {
-      console.error(e);
-      setAuthMsg(`Profile error: ${e.message || e}`);
-    }
+    $("whoami").textContent = `${profile.name} (${profile.email})`;
+
+    showGame();
+
+    wireHabitButtons();
+    await refreshUI();
   });
 
   $("btn-logout")?.addEventListener("click", async () => {
     await sb.auth.signOut();
     currentUser = null;
     showAuth();
-    setAuthMsg("Logged out.");
   });
 }
 
-// ===== Init =====
+// ===== init =====
 async function init() {
-  wireAuthButtons();
-  wireHabitButtons(); // in case buttons exist already
+  wireAuth();
 
   const { data } = await sb.auth.getSession();
-  const session = data.session;
 
-  if (!session?.user) {
-    showAuth();
-    return;
-  }
+  if (data.session?.user) {
+    currentUser = data.session.user;
 
-  currentUser = session.user;
-
-  try {
     const profile = await ensureProfile(currentUser);
+
+    $("whoami").textContent = `${profile.name} (${profile.email})`;
+
     showGame();
-    setProfileUI(profile);
 
     wireHabitButtons();
-    await refreshDisabledButtons();
-  } catch (e) {
-    console.error(e);
+    await refreshUI();
+  } else {
     showAuth();
-    setAuthMsg(`Session error: ${e.message || e}`);
   }
 }
 
