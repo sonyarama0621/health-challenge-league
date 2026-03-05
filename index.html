@@ -1,203 +1,243 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Health Challenge League</title>
 
-<title>Health Challenge League</title>
+  <!-- Prevent favicon 404 -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>">
 
-<script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CDN (fine for MVP) -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase JS (MUST be before app.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<style>
-body{
-font-family: system-ui, -apple-system, sans-serif;
-}
-</style>
-
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Outfit', sans-serif; }
+    .glass { background: rgba(30,41,59,.55); border: 1px solid rgba(148,163,184,.25); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  </style>
 </head>
 
-<body class="bg-slate-900 text-white min-h-screen p-6">
-
-<div class="max-w-5xl mx-auto space-y-6">
-
-<!-- HEADER -->
-<div>
-<h1 class="text-4xl font-bold mb-1">
-Health Challenge League
-</h1>
-<p class="text-slate-400">
-Build healthy habits. Compete with friends.
-</p>
-</div>
-
-
-<!-- AUTH BOX -->
-<div id="auth-box" class="bg-slate-800 p-6 rounded-xl border border-slate-700 space-y-6 max-w-xl">
-
-<div>
-<h2 class="text-xl font-bold mb-2">Create Account</h2>
-
-<input id="su-email" class="w-full p-3 mb-2 rounded bg-slate-900 border border-slate-700" placeholder="Email">
-
-<input id="su-pass" type="password" class="w-full p-3 mb-2 rounded bg-slate-900 border border-slate-700" placeholder="Password">
-
-<input id="su-name" class="w-full p-3 mb-2 rounded bg-slate-900 border border-slate-700" placeholder="Display name">
-
-<input id="su-emoji" class="w-full p-3 mb-2 rounded bg-slate-900 border border-slate-700" placeholder="Avatar emoji (optional)">
-
-<button id="btn-signup"
-class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold p-3 rounded">
-Sign Up
-</button>
-
-</div>
-
-
-<hr class="border-slate-700">
-
-
-<div>
-<h2 class="text-xl font-bold mb-2">Log In</h2>
-
-<input id="li-email" class="w-full p-3 mb-2 rounded bg-slate-900 border border-slate-700" placeholder="Email">
-
-<input id="li-pass" type="password" class="w-full p-3 mb-2 rounded bg-slate-900 border border-slate-700" placeholder="Password">
-
-<button id="btn-login"
-class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold p-3 rounded">
-Log In
-</button>
-
-</div>
-
-<div id="auth-msg" class="text-sm text-red-400"></div>
-
-</div>
-
-
-<!-- GAME DASHBOARD -->
-<div id="game-box" class="hidden space-y-6">
-
-<!-- TOP BAR -->
-<div class="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-xl p-4">
-
-<div id="whoami" class="font-bold text-lg"></div>
-
-<button id="btn-logout"
-class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded">
-Log Out
-</button>
-
-</div>
-
-
-<!-- LEAGUES -->
-<div id="leagues-box" class="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
-
-<div class="flex items-center justify-between">
-
-<h2 class="text-2xl font-bold">Leagues</h2>
-
-<button id="btn-open-league-modal"
-class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded font-bold">
-Create / Join League
-</button>
-
-</div>
-
-<div id="leagues-list" class="space-y-3"></div>
-
-</div>
-
-
-<!-- HABITS SECTION -->
-<div class="bg-slate-800 border border-slate-700 rounded-xl p-6">
-
-<h2 class="text-2xl font-bold mb-3">
-Daily Habits
-</h2>
-
-<p class="text-slate-400">
-Log your habits here. Points count toward all leagues you're in.
-</p>
-
-</div>
-
-
-</div>
-
-
-<!-- LEAGUE MODAL -->
-<div id="league-modal"
-class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-<div class="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
-
-<div class="flex justify-between items-center">
-
-<h2 class="text-xl font-bold">
-Leagues
-</h2>
-
-<button id="btn-close-league-modal" class="text-slate-400 hover:text-white">
-✕
-</button>
-
-</div>
-
-
-<!-- CREATE LEAGUE -->
-<div class="space-y-2">
-
-<div class="font-bold">Create League</div>
-
-<input id="league-name"
-class="w-full p-3 rounded bg-slate-800 border border-slate-700"
-placeholder="League name">
-
-<button id="btn-create-league"
-class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold p-3 rounded">
-Create League
-</button>
-
-</div>
-
-
-<hr class="border-slate-700">
-
-
-<!-- JOIN LEAGUE -->
-<div class="space-y-2">
-
-<div class="font-bold">Join League</div>
-
-<input id="join-code"
-class="w-full p-3 rounded bg-slate-800 border border-slate-700"
-placeholder="Invite code">
-
-<button id="btn-join-league"
-class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold p-3 rounded">
-Join League
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-
-<!-- TOAST -->
-<div id="toast" class="hidden">
-<div id="toast-msg"></div>
-</div>
-
-
-</div>
-
-<script src="app.js"></script>
-
+<body class="min-h-screen bg-slate-900 text-white p-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="mb-8">
+      <h1 class="text-5xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
+        Health Challenge League
+      </h1>
+      <p class="text-slate-400">Build healthy habits. Compete with friends.</p>
+    </div>
+
+    <!-- AUTH BOX -->
+    <div id="auth-box" class="glass rounded-2xl p-6 space-y-6 max-w-xl">
+      <div class="space-y-2">
+        <h2 class="text-2xl font-bold">Create account</h2>
+        <input id="su-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-name" type="text" placeholder="Display name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-signup" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+          Sign up (we’ll email a verification link)
+        </button>
+        <p class="text-xs text-slate-400">After signup, verify your email, then come back and log in.</p>
+      </div>
+
+      <hr class="border-slate-700" />
+
+      <div class="space-y-2">
+        <h2 class="text-2xl font-bold">Log in</h2>
+        <input id="li-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="li-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-login" class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
+          Log in
+        </button>
+      </div>
+
+      <div id="auth-msg" class="text-sm text-slate-300"></div>
+    </div>
+
+    <!-- APP SHELL -->
+    <div id="app-shell" class="hidden space-y-6">
+      <!-- Header bar -->
+      <div class="glass rounded-2xl p-6 flex items-center justify-between">
+        <div>
+          <div class="text-slate-400 text-sm">Logged in as</div>
+          <div id="whoami" class="text-2xl font-bold"></div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="nav-dashboard" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Dashboard</button>
+          <button id="nav-profile" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Profile</button>
+          <button id="btn-logout" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Log out</button>
+        </div>
+      </div>
+
+      <!-- DASHBOARD VIEW -->
+      <div id="view-dashboard" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Leagues card -->
+          <div class="glass rounded-2xl p-6 lg:col-span-1">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-2xl font-extrabold">Leagues</h2>
+              <button id="btn-open-league-modal" class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-bold">
+                Create / Join
+              </button>
+            </div>
+
+            <div id="leagues-empty" class="text-slate-300 text-sm hidden">
+              You haven’t created or joined any leagues yet. Create one or join with a code!
+            </div>
+
+            <div id="leagues-list" class="space-y-3"></div>
+          </div>
+
+          <!-- Habits card -->
+          <div class="glass rounded-2xl p-6 lg:col-span-2">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h2 class="text-3xl font-extrabold">Daily Habits</h2>
+                <p class="text-slate-300">Log each habit once per day. Your logs count toward every league you’re in.</p>
+              </div>
+              <div class="text-slate-400 text-sm mt-2">Steps: choose one</div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button id="btn-log-water" class="habit-btn w-full font-bold py-4 rounded-xl bg-sky-600 hover:bg-sky-500">Log Water (+5)</button>
+              <button id="btn-log-protein" class="habit-btn w-full font-bold py-4 rounded-xl bg-red-600 hover:bg-red-500">Log Protein (+8)</button>
+
+              <button id="btn-log-steps-5k" class="habit-btn steps-btn w-full font-bold py-4 rounded-xl bg-blue-600 hover:bg-blue-500">Log Steps 5K–9.9K (+6)</button>
+              <button id="btn-log-steps-10k" class="habit-btn steps-btn w-full font-bold py-4 rounded-xl bg-blue-800 hover:bg-blue-700">Log Steps 10K+ (+10)</button>
+
+              <button id="btn-log-workout" class="habit-btn w-full font-bold py-4 rounded-xl bg-emerald-700 hover:bg-emerald-600">Log Workout (+12)</button>
+              <button id="btn-log-reading" class="habit-btn w-full font-bold py-4 rounded-xl bg-orange-700 hover:bg-orange-600">Log Reading (+9)</button>
+
+              <button id="btn-log-sleep" class="habit-btn w-full font-bold py-4 rounded-xl bg-violet-700 hover:bg-violet-600">Log Sleep (+11)</button>
+              <button id="btn-log-nosugar" class="habit-btn w-full font-bold py-4 rounded-xl bg-fuchsia-700 hover:bg-fuchsia-600">Log No Added Sugar (+7)</button>
+
+              <button id="btn-log-nocoke" class="habit-btn md:col-span-2 w-full font-bold py-4 rounded-xl bg-amber-700 hover:bg-amber-600">Log No Coke (+5)</button>
+            </div>
+
+            <div id="dash-stats" class="mt-6 flex flex-wrap gap-3">
+              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
+                <div class="text-slate-400 text-xs">Streak</div>
+                <div id="stat-streak" class="text-2xl font-extrabold text-amber-300">0</div>
+              </div>
+              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
+                <div class="text-slate-400 text-xs">Achievements</div>
+                <div id="stat-ach" class="text-2xl font-extrabold">0</div>
+              </div>
+              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
+                <div class="text-slate-400 text-xs">Today logged</div>
+                <div id="stat-today" class="text-2xl font-extrabold text-emerald-300">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEAGUE VIEW -->
+      <div id="view-league" class="hidden space-y-6">
+        <div class="glass rounded-2xl p-6 flex items-center justify-between">
+          <div>
+            <div class="text-slate-400 text-sm">League</div>
+            <div id="league-title" class="text-3xl font-extrabold">—</div>
+            <div id="league-sub" class="text-slate-300 text-sm mt-1"></div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="btn-league-back" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Back</button>
+            <button id="btn-league-refresh" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Refresh</button>
+            <button id="btn-league-delete" class="hidden px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 font-bold">Delete League</button>
+          </div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="text-2xl font-extrabold">Leaderboard</h3>
+            <div class="text-slate-400 text-sm">Points start at 0 when you join this league.</div>
+          </div>
+          <div id="league-board" class="mt-4 space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- PROFILE VIEW -->
+      <div id="view-profile" class="hidden space-y-6">
+        <div class="glass rounded-2xl p-6">
+          <h2 class="text-3xl font-extrabold mb-4">Your Profile</h2>
+
+          <div class="flex flex-col md:flex-row gap-6 items-start">
+            <div class="flex items-center gap-4">
+              <img id="avatar-img" class="w-20 h-20 rounded-2xl object-cover bg-slate-800 border border-slate-700" alt="avatar" />
+              <div>
+                <div class="text-slate-400 text-sm">Name</div>
+                <div id="profile-name" class="text-2xl font-extrabold">—</div>
+                <div id="profile-email" class="text-slate-300 text-sm">—</div>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3">
+              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
+                <div class="text-slate-400 text-xs">Current streak</div>
+                <div id="profile-streak" class="text-2xl font-extrabold text-amber-300">0</div>
+              </div>
+              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
+                <div class="text-slate-400 text-xs">Achievements</div>
+                <div id="profile-ach" class="text-2xl font-extrabold">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <div class="font-bold mb-2">Update profile photo</div>
+            <input id="avatar-file" type="file" accept="image/*" class="block text-sm" />
+            <p class="text-xs text-slate-400 mt-2">Square crop is automatic.</p>
+          </div>
+
+          <div class="mt-6">
+            <h3 class="text-xl font-extrabold mb-3">Your Achievements</h3>
+            <div id="ach-list" class="space-y-2 text-slate-200"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEAGUE MODAL -->
+  <div id="league-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4">
+    <div class="glass rounded-2xl p-6 w-full max-w-xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-2xl font-extrabold">Create or Join a League</h3>
+        <button id="btn-close-league-modal" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Close</button>
+      </div>
+
+      <div class="mt-6 grid grid-cols-1 gap-6">
+        <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+          <div class="font-extrabold text-lg mb-2">Create League</div>
+          <input id="create-league-name" type="text" placeholder="League name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+          <button id="btn-create-league" class="mt-3 w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+            Create private league
+          </button>
+          <div id="create-league-msg" class="text-sm text-slate-300 mt-2"></div>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+          <div class="font-extrabold text-lg mb-2">Join League</div>
+          <input id="join-league-code" type="text" placeholder="Enter invite code" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 uppercase tracking-wider" />
+          <button id="btn-join-league" class="mt-3 w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
+            Join league
+          </button>
+          <div id="join-league-msg" class="text-sm text-slate-300 mt-2"></div>
+        </div>
+
+        <div class="text-xs text-slate-400">
+          Leagues are private. Only people with the invite code can join. (Max 20 players per league.)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 px-4 py-3 rounded-xl bg-rose-700 text-white font-semibold shadow-xl border border-rose-400/30"></div>
+
+  <script src="./app.js"></script>
 </body>
 </html>
