@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Health Challenge League</title>
+  <title>The Healthy Habits Challenge</title>
 
   <!-- Prevent favicon 404 -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>">
@@ -25,9 +25,10 @@
   <div class="max-w-6xl mx-auto">
     <div class="mb-8">
       <h1 class="text-5xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
-        Health Challenge League
+        The Healthy Habits Challenge
       </h1>
-      <p class="text-slate-400">Build healthy habits. Compete with friends.</p>
+      <p class="text-slate-300 font-semibold">Created By: Sonya Rama</p>
+      <p class="text-slate-400 mt-2">Build healthy habits. Compete with friends.</p>
     </div>
 
     <!-- AUTH BOX -->
@@ -35,7 +36,12 @@
       <div class="space-y-2">
         <h2 class="text-2xl font-bold">Create account</h2>
         <input id="su-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="su-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <div class="relative">
+          <input id="su-pass" type="password" placeholder="Password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+          <button id="su-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">
+            👁
+          </button>
+        </div>
         <input id="su-name" type="text" placeholder="Display name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
         <button id="btn-signup" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
           Sign up (we’ll email a verification link)
@@ -48,10 +54,43 @@
       <div class="space-y-2">
         <h2 class="text-2xl font-bold">Log in</h2>
         <input id="li-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="li-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <div class="relative">
+          <input id="li-pass" type="password" placeholder="Password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+          <button id="li-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">
+            👁
+          </button>
+        </div>
+
         <button id="btn-login" class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
           Log in
         </button>
+
+        <button id="btn-forgot" class="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+          Forgot password? Reset it
+        </button>
+      </div>
+
+      <!-- RESET PASSWORD (hidden until needed) -->
+      <div id="reset-box" class="hidden bg-slate-900/50 border border-slate-700 rounded-xl p-4 space-y-3">
+        <div class="font-extrabold text-lg">Reset Password</div>
+        <input id="reset-email" type="email" placeholder="Email for reset link" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-send-reset" class="w-full font-bold py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900">
+          Email me a reset link
+        </button>
+
+        <div id="newpass-box" class="hidden space-y-2">
+          <div class="text-slate-300 text-sm">Set a new password:</div>
+          <div class="relative">
+            <input id="new-pass" type="password" placeholder="New password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+            <button id="new-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">👁</button>
+          </div>
+          <input id="new-pass2" type="password" placeholder="Confirm new password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+          <button id="btn-set-newpass" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+            Update password
+          </button>
+        </div>
+
+        <div id="reset-msg" class="text-sm text-slate-300"></div>
       </div>
 
       <div id="auth-msg" class="text-sm text-slate-300"></div>
@@ -60,14 +99,39 @@
     <!-- APP SHELL -->
     <div id="app-shell" class="hidden space-y-6">
       <!-- Header bar -->
-      <div class="glass rounded-2xl p-6 flex items-center justify-between">
-        <div>
+      <div class="glass rounded-2xl p-6 flex items-start justify-between gap-6">
+        <div class="min-w-0">
           <div class="text-slate-400 text-sm">Logged in as</div>
-          <div id="whoami" class="text-2xl font-bold"></div>
+          <div id="whoami" class="text-2xl font-extrabold truncate"></div>
+
+          <!-- Stats UNDER name -->
+          <div class="mt-4 flex flex-wrap gap-3">
+            <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
+              <div class="text-slate-400 text-xs">Streak</div>
+              <div id="hdr-streak" class="text-2xl font-extrabold text-amber-300">0</div>
+            </div>
+            <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
+              <div class="text-slate-400 text-xs">Achievements</div>
+              <div id="hdr-ach" class="text-2xl font-extrabold">0</div>
+            </div>
+            <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
+              <div class="text-slate-400 text-xs">Points</div>
+              <div id="hdr-points" class="text-2xl font-extrabold text-emerald-300">0</div>
+            </div>
+          </div>
         </div>
+
         <div class="flex items-center gap-3">
+          <!-- Notifications bell -->
+          <button id="btn-notifs" class="relative px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">
+            🔔
+            <span id="notif-dot" class="hidden absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 border border-slate-900"></span>
+          </button>
+
           <button id="nav-dashboard" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Dashboard</button>
           <button id="nav-profile" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Profile</button>
+          <button id="nav-friends" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Friends</button>
+          <button id="nav-mindgame" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Mind Game</button>
           <button id="btn-logout" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Log out</button>
         </div>
       </div>
@@ -116,21 +180,6 @@
 
               <button id="btn-log-nocoke" class="habit-btn md:col-span-2 w-full font-bold py-4 rounded-xl bg-amber-700 hover:bg-amber-600">Log No Coke (+5)</button>
             </div>
-
-            <div id="dash-stats" class="mt-6 flex flex-wrap gap-3">
-              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
-                <div class="text-slate-400 text-xs">Streak</div>
-                <div id="stat-streak" class="text-2xl font-extrabold text-amber-300">0</div>
-              </div>
-              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
-                <div class="text-slate-400 text-xs">Achievements</div>
-                <div id="stat-ach" class="text-2xl font-extrabold">0</div>
-              </div>
-              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
-                <div class="text-slate-400 text-xs">Today logged</div>
-                <div id="stat-today" class="text-2xl font-extrabold text-emerald-300">0</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -170,18 +219,10 @@
               <div>
                 <div class="text-slate-400 text-sm">Name</div>
                 <div id="profile-name" class="text-2xl font-extrabold">—</div>
-                <div id="profile-email" class="text-slate-300 text-sm">—</div>
-              </div>
-            </div>
-
-            <div class="flex flex-wrap gap-3">
-              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
-                <div class="text-slate-400 text-xs">Current streak</div>
-                <div id="profile-streak" class="text-2xl font-extrabold text-amber-300">0</div>
-              </div>
-              <div class="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700">
-                <div class="text-slate-400 text-xs">Achievements</div>
-                <div id="profile-ach" class="text-2xl font-extrabold">0</div>
+                <div class="text-slate-300 text-sm" id="profile-email">—</div>
+                <div class="text-slate-400 text-xs mt-2">
+                  Your Friend Code: <span id="friend-code" class="font-mono tracking-wider text-slate-200">—</span>
+                </div>
               </div>
             </div>
           </div>
@@ -192,12 +233,63 @@
             <p class="text-xs text-slate-400 mt-2">Square crop is automatic.</p>
           </div>
 
-          <div class="mt-6">
+          <div class="mt-8">
             <h3 class="text-xl font-extrabold mb-3">Your Achievements</h3>
             <div id="ach-list" class="space-y-2 text-slate-200"></div>
           </div>
         </div>
       </div>
+
+      <!-- FRIENDS VIEW -->
+      <div id="view-friends" class="hidden space-y-6">
+        <div class="glass rounded-2xl p-6">
+          <h2 class="text-3xl font-extrabold mb-2">Friends</h2>
+          <p class="text-slate-300 mb-6">Add friends using their Friend Code. Friend requests show up in your 🔔 notifications.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+              <div class="font-extrabold text-lg mb-2">Add a friend</div>
+              <input id="friend-code-input" type="text" placeholder="Enter Friend Code (ex: A1B2C3D4)"
+                     class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 uppercase tracking-wider" />
+              <button id="btn-send-friend" class="mt-3 w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+                Send friend request
+              </button>
+              <div id="friend-msg" class="text-sm text-slate-300 mt-2"></div>
+            </div>
+
+            <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+              <div class="font-extrabold text-lg mb-2">Your friends</div>
+              <div id="friends-list" class="space-y-3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MIND GAME VIEW -->
+      <div id="view-mindgame" class="hidden space-y-6">
+        <div class="glass rounded-2xl p-6">
+          <h2 class="text-3xl font-extrabold mb-2">Daily Mind Game</h2>
+          <p class="text-slate-300 mb-6">Brain Boost: Guess the daily number (1–10). You get 3 tries. Win = +10 points.</p>
+
+          <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-4 max-w-xl">
+            <div class="flex items-center gap-3">
+              <input id="mg-guess" type="number" min="1" max="10" placeholder="Enter 1–10"
+                     class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+              <button id="btn-mg-try" class="px-5 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-bold">
+                Try
+              </button>
+            </div>
+
+            <div class="mt-4 text-slate-200">
+              Attempts left: <span id="mg-left" class="font-extrabold">3</span>
+            </div>
+            <div id="mg-msg" class="mt-2 text-slate-300 text-sm"></div>
+
+            <div id="mg-done" class="hidden mt-4 p-3 rounded-xl bg-slate-900 border border-slate-700 text-slate-200"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -232,6 +324,20 @@
           Leagues are private. Only people with the invite code can join. (Max 20 players per league.)
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS MODAL -->
+  <div id="notif-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4">
+    <div class="glass rounded-2xl p-6 w-full max-w-xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-2xl font-extrabold">Notifications</h3>
+        <button id="btn-close-notif" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Close</button>
+      </div>
+
+      <div class="mt-4 text-slate-300 text-sm">Friend requests</div>
+      <div id="notif-list" class="mt-3 space-y-3"></div>
+      <div id="notif-empty" class="hidden mt-4 text-slate-300 text-sm">No notifications right now.</div>
     </div>
   </div>
 
