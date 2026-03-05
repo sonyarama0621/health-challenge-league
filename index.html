@@ -14,6 +14,7 @@
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
   <div class="max-w-6xl mx-auto space-y-6">
+
     <header class="flex items-end justify-between gap-4">
       <div>
         <h1 class="text-4xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
@@ -52,6 +53,7 @@
 
     <!-- APP SHELL -->
     <div id="app-shell" class="hidden space-y-6">
+
       <!-- top bar -->
       <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 flex items-center justify-between">
         <div>
@@ -64,7 +66,7 @@
         </button>
       </div>
 
-      <!-- CREATE / JOIN MODAL (NO SOLO) -->
+      <!-- CREATE / JOIN MODAL (opens ONLY when button is clicked) -->
       <div id="mode-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
         <div class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4">
           <div class="text-2xl font-extrabold">Leagues</div>
@@ -89,6 +91,10 @@
               <button id="btn-join-league" class="w-full font-bold py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900">
                 Join league
               </button>
+              <div class="text-xs text-slate-400">
+                Tip: you can share an invite link like:
+                <span class="font-mono">...?join=CODE</span>
+              </div>
             </div>
           </div>
 
@@ -99,6 +105,44 @@
           </div>
 
           <div id="mode-msg" class="text-sm text-slate-300"></div>
+        </div>
+      </div>
+
+      <!-- PLAYER PROFILE MODAL (league view) -->
+      <div id="player-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
+        <div id="player-modal-card" class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <img id="pm-avatar" class="w-20 h-20 rounded-2xl object-cover border border-slate-700 bg-slate-900" alt="avatar" />
+              <div class="min-w-0">
+                <div id="pm-name" class="text-3xl font-extrabold truncate">Player</div>
+                <div id="pm-tier" class="text-slate-300 text-sm">Tier: —</div>
+                <div id="pm-email" class="text-slate-400 text-xs truncate"></div>
+              </div>
+            </div>
+            <button id="btn-close-player" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200">✕</button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
+              <div class="text-slate-400 text-sm">League Points</div>
+              <div id="pm-league-points" class="text-3xl font-extrabold text-cyan-300">0</div>
+            </div>
+            <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
+              <div class="text-slate-400 text-sm">Streak (global)</div>
+              <div id="pm-streak" class="text-3xl font-extrabold text-amber-400">0</div>
+            </div>
+            <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
+              <div class="text-slate-400 text-sm">Achievements (global)</div>
+              <div id="pm-ach" class="text-3xl font-extrabold">0</div>
+            </div>
+            <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
+              <div class="text-slate-400 text-sm">Role</div>
+              <div id="pm-role" class="text-2xl font-extrabold">member</div>
+            </div>
+          </div>
+
+          <div class="text-xs text-slate-400">Note: Tier is based on league points.</div>
         </div>
       </div>
 
@@ -198,8 +242,9 @@
             <div class="text-slate-400 text-sm">Invite code: <span id="league-code" class="font-bold"></span></div>
           </div>
 
-          <div class="flex gap-2">
-            <button id="btn-copy-code" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">Copy invite code</button>
+          <div class="flex flex-wrap gap-2">
+            <button id="btn-copy-code" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">Copy invite link</button>
+            <button id="btn-leave-league" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">Leave league</button>
             <button id="btn-league-refresh" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">Refresh</button>
           </div>
         </div>
@@ -208,7 +253,7 @@
           <div class="lg:col-span-2 bg-slate-900 border border-slate-700 rounded-2xl p-5 space-y-4">
             <div class="flex items-center justify-between">
               <div class="text-2xl font-extrabold">🏆 League Leaderboard</div>
-              <div class="text-slate-400 text-sm">Points since each member joined</div>
+              <div class="text-slate-400 text-sm">Click a player to view</div>
             </div>
             <div id="league-leaderboard" class="space-y-3"></div>
           </div>
