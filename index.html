@@ -8,7 +8,7 @@
   <!-- Tailwind CDN (fine for MVP) -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 
-  <!-- Supabase JS -->
+  <!-- Supabase JS (must load BEFORE app.js) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -18,34 +18,29 @@
 </head>
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
-  <div class="max-w-6xl mx-auto">
-
-    <!-- HEADER -->
-    <div class="flex items-center justify-between mb-6">
+  <div class="max-w-6xl mx-auto space-y-6">
+    <header class="flex items-end justify-between gap-4">
       <div>
-        <h1 class="text-4xl font-extrabold bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
+        <h1 class="text-4xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
           Health Challenge League
         </h1>
-        <p class="text-slate-400 mt-1">Log habits, build streaks, unlock achievements, and compete in private leagues.</p>
+        <p class="text-slate-400">Sign up, verify your email, then log in to play.</p>
       </div>
-
-      <div class="flex items-center gap-3">
-        <button id="btn-logout" class="hidden px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700">
-          Log out
-        </button>
-      </div>
-    </div>
+    </header>
 
     <!-- AUTH BOX -->
     <div id="auth-box" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-6 max-w-xl">
       <div class="space-y-2">
         <h2 class="text-xl font-bold">Create account</h2>
-        <input id="su-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="su-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="su-name" type="text" placeholder="Display name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="su-emoji" type="text" placeholder="Avatar emoji (optional, ex: 🚀)" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <button id="btn-signup" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
-          Sign up (emails a verification link)
+        <input id="su-email" type="email" placeholder="Email"
+          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-pass" type="password" placeholder="Password"
+          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-name" type="text" placeholder="Display name"
+          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-signup"
+          class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+          Sign up (verification email)
         </button>
         <p class="text-xs text-slate-400">After signup, check your inbox and click the verification link.</p>
       </div>
@@ -54,9 +49,12 @@
 
       <div class="space-y-2">
         <h2 class="text-xl font-bold">Log in</h2>
-        <input id="li-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="li-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <button id="btn-login" class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
+        <input id="li-email" type="email" placeholder="Email"
+          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="li-pass" type="password" placeholder="Password"
+          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-login"
+          class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
           Log in
         </button>
       </div>
@@ -64,247 +62,222 @@
       <div id="auth-msg" class="text-sm text-slate-300"></div>
     </div>
 
-    <!-- APP -->
-    <div id="app-shell" class="hidden">
-
-      <!-- TOP BAR -->
-      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6 flex items-center justify-between">
+    <!-- APP SHELL -->
+    <div id="app-shell" class="hidden space-y-6">
+      <!-- top bar -->
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 flex items-center justify-between">
         <div>
           <div class="text-slate-400 text-sm">Logged in as</div>
-          <div id="whoami" class="text-2xl font-bold"></div>
-          <div class="text-slate-400 text-sm mt-1">
-            Mode: <span id="mode-label" class="font-semibold text-slate-200">Solo</span>
-          </div>
+          <div id="whoami" class="text-2xl font-extrabold"></div>
         </div>
+        <button id="btn-logout" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">
+          Log out
+        </button>
+      </div>
 
-        <div class="flex gap-2 flex-wrap justify-end">
-          <button class="navbtn px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800" data-page="dashboard">Dashboard</button>
-          <button class="navbtn px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800" data-page="play">Play</button>
-          <button class="navbtn px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800" data-page="leagues">Leagues</button>
-          <button class="navbtn px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800" data-page="achievements">Achievements</button>
-          <button class="navbtn px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800" data-page="friends">Friends</button>
+      <!-- MODE CHOOSER MODAL -->
+      <div id="mode-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
+        <div class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4">
+          <div class="text-2xl font-extrabold">Choose how you want to play</div>
+          <p class="text-slate-300 text-sm">
+            You always have your personal tracking. Leagues are private groups with their own leaderboard.
+          </p>
+
+          <div class="grid gap-3">
+            <button id="btn-mode-solo" class="w-full font-bold py-3 rounded-xl bg-slate-700 hover:bg-slate-600">
+              Solo (just my stats)
+            </button>
+
+            <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4 space-y-3">
+              <div class="font-bold">Create a private league</div>
+              <input id="create-league-name" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700"
+                placeholder="League name (ex: Team Glow Up)" />
+              <button id="btn-create-league" class="w-full font-bold py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+                Create league
+              </button>
+            </div>
+
+            <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4 space-y-3">
+              <div class="font-bold">Join a private league</div>
+              <input id="join-league-code" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700"
+                placeholder="Enter invite code" />
+              <button id="btn-join-league" class="w-full font-bold py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900">
+                Join league
+              </button>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button id="btn-close-mode" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">
+              Close
+            </button>
+          </div>
+
+          <div id="mode-msg" class="text-sm text-slate-300"></div>
         </div>
       </div>
 
-      <!-- PAGES WRAP -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- LEFT SIDEBAR CARD -->
+      <!-- DASHBOARD -->
+      <div id="dashboard" class="grid lg:grid-cols-3 gap-6">
+        <!-- profile card -->
         <div id="profile-card" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-4">
           <div class="flex items-center gap-4">
-            <img id="avatar-img" class="w-16 h-16 rounded-2xl object-cover border border-slate-700 bg-slate-900" alt="Avatar" />
-            <div>
-              <div class="text-slate-400 text-sm">Profile</div>
-              <div id="profile-name" class="text-xl font-bold"></div>
-              <div id="league-tier" class="text-sm text-slate-300 mt-1"></div>
+            <img id="avatar-img" src="" alt="Avatar"
+              class="w-20 h-20 rounded-2xl object-cover border border-slate-700 bg-slate-900" />
+            <div class="min-w-0">
+              <div class="text-slate-400 text-sm">Current League Tier</div>
+              <div id="tier-name" class="text-3xl font-extrabold">Rookie</div>
+              <div class="text-slate-400 text-sm">Updates automatically as points increase.</div>
             </div>
           </div>
 
           <div class="grid grid-cols-3 gap-3">
-            <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 text-center">
-              <div class="text-slate-400 text-xs">Streak</div>
-              <div id="badge-streak" class="text-3xl font-extrabold text-amber-400">0</div>
+            <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
+              <div class="text-slate-400 text-sm">Streak</div>
+              <div id="streak-num" class="text-3xl font-extrabold text-amber-400">0</div>
             </div>
-            <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 text-center">
-              <div class="text-slate-400 text-xs">Achievements</div>
-              <div id="badge-achievements" class="text-3xl font-extrabold text-white">0</div>
+            <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
+              <div class="text-slate-400 text-sm">Achievements</div>
+              <div id="ach-num" class="text-3xl font-extrabold">0</div>
             </div>
-            <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 text-center">
-              <div class="text-slate-400 text-xs">Points</div>
-              <div id="badge-points" class="text-3xl font-extrabold text-emerald-400">0</div>
+            <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
+              <div class="text-slate-400 text-sm">Points</div>
+              <div id="points-num" class="text-3xl font-extrabold text-emerald-400">0</div>
             </div>
           </div>
 
-          <div class="pt-2">
-            <div class="font-semibold mb-2">Update profile photo</div>
+          <div class="pt-2 space-y-2">
+            <div class="font-bold">Update profile photo</div>
             <input id="avatar-file" type="file" accept="image/*" class="block w-full text-sm text-slate-300" />
-            <p class="text-xs text-slate-400 mt-2">Square crop is automatic.</p>
-            <button id="btn-upload-avatar" class="mt-3 w-full font-bold py-2 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800">
-              Upload photo
-            </button>
-            <div id="avatar-msg" class="text-xs text-slate-300 mt-2"></div>
+            <div class="text-xs text-slate-400">Square crop is automatic.</div>
           </div>
-        </div>
 
-        <!-- RIGHT MAIN CONTENT -->
-        <div class="lg:col-span-2 space-y-6">
-
-          <!-- DASHBOARD -->
-          <section id="page-dashboard" class="page bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <h2 class="text-2xl font-extrabold">Dashboard</h2>
-                <p class="text-slate-400">Quick view of your stats and what mode you’re playing.</p>
-              </div>
-              <button id="btn-open-mode" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold">
-                Choose Mode
+          <div class="pt-4 border-t border-slate-700 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="font-bold">Leagues</div>
+              <button id="btn-open-mode" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm">
+                Create / Join
               </button>
             </div>
 
-            <div class="grid md:grid-cols-2 gap-4">
-              <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5">
-                <div class="text-slate-400 text-sm">Current mode</div>
-                <div id="dash-mode" class="text-xl font-bold mt-1">Solo</div>
-                <div id="dash-mode-sub" class="text-slate-300 text-sm mt-2">
-                  Solo = no leaderboard. Just track your progress.
-                </div>
-              </div>
-
-              <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5">
-                <div class="text-slate-400 text-sm">Leagues</div>
-                <div id="dash-leagues" class="text-xl font-bold mt-1">0 joined</div>
-                <div class="text-slate-300 text-sm mt-2">
-                  Private leagues only — you can create one or join with an invite code.
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- PLAY -->
-          <section id="page-play" class="page hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-            <div class="flex items-center justify-between mb-3">
-              <div>
-                <h2 class="text-2xl font-extrabold">Daily Habits</h2>
-                <p class="text-slate-400">Log each habit once per day.</p>
-              </div>
-              <div class="text-slate-400 text-sm">Steps: choose one</div>
-            </div>
-
-            <div class="grid sm:grid-cols-2 gap-3">
-              <button class="habit-btn w-full font-bold py-4 rounded-xl bg-slate-700/40 border border-slate-600 hover:bg-slate-700" data-habit="water" data-points="5">Log Water (+5)</button>
-              <button class="habit-btn w-full font-bold py-4 rounded-xl bg-red-700/70 border border-red-600 hover:bg-red-700" data-habit="protein" data-points="8">Log Protein (+8)</button>
-
-              <button class="habit-btn w-full font-bold py-4 rounded-xl bg-blue-600/80 border border-blue-500 hover:bg-blue-600" data-habit="steps_5k" data-points="6" data-steps="1">Log Steps 5K–9.9K (+6)</button>
-              <button class="habit-btn w-full font-bold py-4 rounded-xl bg-blue-800/70 border border-blue-700 hover:bg-blue-800" data-habit="steps_10k" data-points="10" data-steps="1">Log Steps 10K+ (+10)</button>
-
-              <button class="habit-btn w-full font-bold py-4 rounded-xl bg-emerald-700/70 border border-emerald-600 hover:bg-emerald-700" data-habit="workout" data-points="12">Log Workout (+12)</button>
-              <button class="habit-btn w-full font-bold py-4 rounded-xl bg-orange-700/80 border border-orange-600 hover:bg-orange-700" data-habit="reading" data-points="9">Log Reading (+9)</button>
-
-              <button class="habit-btn w-full font-bold py-4 rounded-xl bg-indigo-700/70 border border-indigo-600 hover:bg-indigo-700" data-habit="sleep" data-points="11">Log Sleep (+11)</button>
-              <button class="habit-btn w-full font-bold py-4 rounded-xl bg-pink-700/70 border border-pink-600 hover:bg-pink-700" data-habit="no_sugar" data-points="7">Log No Added Sugar (+7)</button>
-
-              <button class="habit-btn sm:col-span-2 w-full font-bold py-4 rounded-xl bg-amber-700/80 border border-amber-600 hover:bg-amber-700" data-habit="no_coke" data-points="5">Log No Coke (+5)</button>
-            </div>
-
-            <div class="mt-4 text-sm text-slate-300" id="play-msg"></div>
-          </section>
-
-          <!-- LEAGUES -->
-          <section id="page-leagues" class="page hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <h2 class="text-2xl font-extrabold">Leagues</h2>
-                <p class="text-slate-400">Private leagues only. Create one or join with an invite code.</p>
-              </div>
-              <div class="flex gap-2">
-                <button id="btn-create-league" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold">
-                  Create League
-                </button>
-                <button id="btn-join-league" class="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 font-bold">
-                  Join League
-                </button>
-              </div>
-            </div>
-
-            <div id="leagues-empty" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-5 text-slate-300">
-              You haven't created or joined any leagues! Create or join one.
-            </div>
-
-            <div id="leagues-list" class="space-y-3"></div>
-
-            <!-- LEAGUE DETAIL -->
-            <div id="league-detail" class="hidden mt-6 bg-slate-900 border border-slate-700 rounded-2xl p-5">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-slate-400 text-sm">League</div>
-                  <div id="league-title" class="text-2xl font-extrabold"></div>
-                  <div class="text-slate-300 text-sm mt-1">
-                    Invite code: <span id="league-code" class="font-bold"></span>
-                  </div>
-                </div>
-                <button id="btn-close-league" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700">
-                  Close
-                </button>
-              </div>
-
-              <div class="mt-4">
-                <div class="text-slate-400 text-sm mb-2">League Leaderboard</div>
-                <div id="league-board" class="space-y-2"></div>
-              </div>
-
-              <div id="league-owner-tools" class="hidden mt-5 border-t border-slate-700 pt-4">
-                <div class="font-bold mb-2">Owner tools</div>
-                <div class="grid sm:grid-cols-2 gap-2">
-                  <input id="league-name-input" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="New league name" />
-                  <button id="btn-update-league-name" class="w-full font-bold py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900">
-                    Update name
-                  </button>
-                </div>
-                <div id="league-msg" class="text-sm text-slate-300 mt-2"></div>
-              </div>
-            </div>
-          </section>
-
-          <!-- ACHIEVEMENTS -->
-          <section id="page-achievements" class="page hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-            <div class="mb-4">
-              <h2 class="text-2xl font-extrabold">Achievements</h2>
-              <p class="text-slate-400">Unlocked achievements show here.</p>
-            </div>
-            <div id="achievements-list" class="grid md:grid-cols-2 gap-3"></div>
-          </section>
-
-          <!-- FRIENDS -->
-          <section id="page-friends" class="page hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-            <div class="mb-2">
-              <h2 class="text-2xl font-extrabold">Friends</h2>
-              <p class="text-slate-400">Coming next. This will let you invite friends inside the app.</p>
-            </div>
-            <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 text-slate-300">
-              Next: add a friends list and “Invite to League” from inside the app (no texting codes needed).
-            </div>
-          </section>
-
-          <!-- OTHER PLAYER PROFILE MODAL -->
-          <div id="player-modal" class="hidden fixed inset-0 bg-black/70 p-6 z-50">
-            <div class="max-w-xl mx-auto bg-slate-900 border border-slate-700 rounded-2xl p-6">
-              <div class="flex items-center justify-between mb-4">
-                <div class="text-2xl font-extrabold">Player Profile</div>
-                <button id="btn-close-player" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700">
-                  Close
-                </button>
-              </div>
-
-              <div class="flex items-center gap-4">
-                <img id="modal-avatar" class="w-16 h-16 rounded-2xl object-cover border border-slate-700 bg-slate-800" />
-                <div>
-                  <div id="modal-name" class="text-xl font-bold"></div>
-                  <div id="modal-tier" class="text-slate-300 text-sm"></div>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-3 gap-3 mt-5">
-                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 text-center">
-                  <div class="text-slate-400 text-xs">Streak</div>
-                  <div id="modal-streak" class="text-3xl font-extrabold text-amber-400">0</div>
-                </div>
-                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 text-center">
-                  <div class="text-slate-400 text-xs">Achievements</div>
-                  <div id="modal-ach" class="text-3xl font-extrabold">0</div>
-                </div>
-                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 text-center">
-                  <div class="text-slate-400 text-xs">Points</div>
-                  <div id="modal-points" class="text-3xl font-extrabold text-emerald-400">0</div>
-                </div>
+            <div id="my-leagues" class="space-y-2">
+              <div class="text-slate-400 text-sm">
+                You haven't created or joined any leagues! Create or join one.
               </div>
             </div>
           </div>
+        </div>
 
+        <!-- habits -->
+        <div class="lg:col-span-2 bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-4">
+          <div class="flex items-end justify-between gap-4">
+            <div>
+              <div class="text-3xl font-extrabold">Daily Habits</div>
+              <div class="text-slate-400">Log each habit once per day</div>
+            </div>
+            <div class="text-slate-400 text-sm">Steps: choose one</div>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-3">
+            <button id="btn-log-water" class="habit-btn w-full font-bold py-5 rounded-2xl bg-cyan-600 hover:bg-cyan-500">
+              Log Water (+5)
+            </button>
+            <button id="btn-log-protein" class="habit-btn w-full font-bold py-5 rounded-2xl bg-red-600 hover:bg-red-500">
+              Log Protein (+8)
+            </button>
+
+            <button id="btn-log-steps-5k" class="habit-btn steps-btn w-full font-bold py-5 rounded-2xl bg-blue-600 hover:bg-blue-500">
+              Log Steps 5K–9.9K (+6)
+            </button>
+            <button id="btn-log-steps-10k" class="habit-btn steps-btn w-full font-bold py-5 rounded-2xl bg-indigo-700 hover:bg-indigo-600">
+              Log Steps 10K+ (+10)
+            </button>
+
+            <button id="btn-log-workout" class="habit-btn w-full font-bold py-5 rounded-2xl bg-emerald-700 hover:bg-emerald-600">
+              Log Workout (+12)
+            </button>
+            <button id="btn-log-reading" class="habit-btn w-full font-bold py-5 rounded-2xl bg-orange-600 hover:bg-orange-500">
+              Log Reading (+9)
+            </button>
+
+            <button id="btn-log-sleep" class="habit-btn w-full font-bold py-5 rounded-2xl bg-purple-700 hover:bg-purple-600">
+              Log Sleep (+11)
+            </button>
+            <button id="btn-log-nosugar" class="habit-btn w-full font-bold py-5 rounded-2xl bg-pink-700 hover:bg-pink-600">
+              Log No Added Sugar (+7)
+            </button>
+
+            <button id="btn-log-nocoke" class="habit-btn sm:col-span-2 w-full font-bold py-5 rounded-2xl bg-amber-700 hover:bg-amber-600">
+              Log No Coke (+5)
+            </button>
+          </div>
+
+          <div class="text-xs text-slate-400">
+            If you miss a day (no habits logged), your streak resets to 0.
+          </div>
         </div>
       </div>
 
-    </div>
+      <!-- LEAGUE HUB (full page section) -->
+      <div id="league-detail" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-5">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div class="space-y-1">
+            <div class="text-slate-400 text-sm">League</div>
+            <div id="league-title" class="text-4xl font-extrabold"></div>
+            <div class="text-slate-400 text-sm">Invite code: <span id="league-code" class="font-bold"></span></div>
+          </div>
 
+          <div class="flex gap-2">
+            <button id="btn-copy-code" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">
+              Copy invite code
+            </button>
+            <button id="btn-league-refresh" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 bg-slate-900 border border-slate-700 rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="text-2xl font-extrabold">🏆 League Leaderboard</div>
+              <div class="text-slate-400 text-sm">Top 20 players</div>
+            </div>
+
+            <div id="league-leaderboard" class="space-y-3"></div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 space-y-4">
+            <div class="text-2xl font-extrabold">Members</div>
+            <div id="league-members" class="space-y-2"></div>
+
+            <!-- owner tools -->
+            <div id="league-owner-tools" class="hidden mt-5 border-t border-slate-700 pt-4">
+              <div class="font-bold mb-2">Owner tools</div>
+
+              <div class="grid sm:grid-cols-2 gap-2">
+                <input id="league-name-input" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="New league name" />
+                <button id="btn-update-league-name" class="w-full font-bold py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900">
+                  Update name
+                </button>
+              </div>
+
+              <button id="btn-delete-league"
+                class="mt-3 w-full font-bold py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white">
+                Delete league (owner only)
+              </button>
+
+              <div id="league-msg" class="text-sm text-slate-300 mt-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOAST -->
+      <div id="toast" class="hidden fixed bottom-6 right-6 z-50 max-w-md">
+        <div id="toast-inner" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 shadow-xl"></div>
+      </div>
+    </div>
   </div>
 
   <script src="./app.js"></script>
