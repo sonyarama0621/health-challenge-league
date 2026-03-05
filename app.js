@@ -1,5 +1,5 @@
 // ==============================
-// Supabase setup (EDIT THESE)
+// Supabase setup
 // ==============================
 const SUPABASE_URL = "https://onndovdpdaccsavbkykm.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -13,7 +13,7 @@ if (!window.supabase) {
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==============================
-// Game config
+// Config
 // ==============================
 const HABITS = {
   water: { points: 5, label: "Water", group: null },
@@ -27,7 +27,7 @@ const HABITS = {
   no_coke: { points: 5, label: "No Coke", group: null },
 };
 
-const TIER = [
+const TIERS = [
   { name: "Rookie", min: 0, class: "tier-rookie" },
   { name: "Elite", min: 450, class: "tier-elite" },
   { name: "Pro", min: 750, class: "tier-pro" },
@@ -35,20 +35,15 @@ const TIER = [
   { name: "Champion", min: 1900, class: "tier-champion" },
 ];
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function getTier(points) {
-  let t = TIER[0];
-  for (const tier of TIER) {
-    if (points >= tier.min) t = tier;
-  }
+  let t = TIERS[0];
+  for (const tier of TIERS) if (points >= tier.min) t = tier;
   return t;
 }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 // ==============================
-// DOM helpers
+// DOM
 // ==============================
 const $ = (id) => document.getElementById(id);
 
@@ -59,7 +54,6 @@ const authMsg = $("auth-msg");
 const btnSignup = $("btn-signup");
 const btnLogin = $("btn-login");
 const btnLogout = $("btn-logout");
-const btnSwitchLeague = $("btn-switch-league");
 
 const whoami = $("whoami");
 const modeLabel = $("mode-label");
@@ -82,33 +76,32 @@ const avatarFallback = $("avatar-fallback");
 const avatarInput = $("avatar-input");
 const avatarStatus = $("avatar-status");
 
+const leaguesList = $("leagues-list");
+const leaguesEmpty = $("leagues-empty");
+const btnLeaguesRefresh = $("btn-leagues-refresh");
+const btnCreateLeague = $("btn-create-league");
+const btnJoinLeague = $("btn-join-league");
+const btnStartSolo = $("btn-start-solo");
+const newLeagueNameInput = $("new-league-name");
+const joinCodeInput = $("join-code");
+
 const leagueBoard = $("league-board");
 const leaderboardList = $("leaderboard-list");
 const btnBoardRefresh = $("btn-leaderboard-refresh");
 
 const toast = $("toast");
 
-// mode modal
-const modeModal = $("mode-modal");
-const btnCloseMode = $("btn-close-mode");
-const btnStartSolo = $("btn-start-solo");
-const btnCreateLeague = $("btn-create-league");
-const btnJoinLeague = $("btn-join-league");
-const newLeagueNameInput = $("new-league-name");
-const joinCodeInput = $("join-code");
+// Tutorial
+const btnStartTour = $("btn-start-tour");
+const tourOverlay = $("tour-overlay");
+const tourText = $("tour-text");
+const btnTourNext = $("btn-tour-next");
+const btnTourSkip = $("btn-tour-skip");
+const sectionProfile = $("section-profile");
+const sectionLeagues = $("section-leagues");
+const sectionPlay = $("section-play");
 
-// profile modal
-const profileModal = $("profile-modal");
-const btnCloseProfile = $("btn-close-profile");
-const pmAvatar = $("pm-avatar");
-const pmAvatarFallback = $("pm-avatar-fallback");
-const pmName = $("pm-name");
-const pmTier = $("pm-tier");
-const pmStreak = $("pm-streak");
-const pmAch = $("pm-ach");
-const pmPoints = $("pm-points");
-
-// habit buttons
+// Habit buttons
 let habitButtons = {
   water: $("btn-log-water"),
   protein: $("btn-log-protein"),
@@ -122,29 +115,25 @@ let habitButtons = {
 };
 
 // ==============================
-// App state
+// State
 // ==============================
 let currentUser = null;
 let myProfile = null;
-let currentLeague = null; // leagues row
-let todaysCheckins = new Set(); // habit_key logged today for this league/user
+let currentLeague = null;
+let todaysCheckins = new Set();
 
 // ==============================
-// UI
+// UI helpers
 // ==============================
-function setAuthMsg(text = "") {
-  authMsg.textContent = text;
-}
+function setAuthMsg(text = "") { authMsg.textContent = text; }
 
 function showToast(message, ok = true) {
   toast.className =
     "fixed bottom-4 right-4 px-5 py-4 rounded-xl shadow-2xl border text-sm " +
-    (ok
-      ? "bg-emerald-600 border-emerald-400/30"
-      : "bg-red-600 border-red-400/30");
+    (ok ? "bg-emerald-600 border-emerald-400/30" : "bg-red-600 border-red-400/30");
   toast.textContent = message;
   toast.classList.remove("hidden");
-  setTimeout(() => toast.classList.add("hidden"), 3500);
+  setTimeout(() => toast.classList.add("hidden"), 3200);
 }
 
 function showAuth() {
@@ -157,36 +146,16 @@ function showGame() {
   gameBox.classList.remove("hidden");
 }
 
-function openModeModal() {
-  modeModal.classList.remove("hidden");
-  const params = new URLSearchParams(window.location.search);
-  const join = params.get("join");
-  if (join) joinCodeInput.value = join.toUpperCase();
+function setWhoAmI() {
+  const nm = myProfile?.name || "Player";
+  const em = myProfile?.email || currentUser?.email || "";
+  whoami.textContent = `${nm} (${em})`;
 }
 
-function closeModeModal() {
-  modeModal.classList.add("hidden");
-}
-
-function openProfileModal() {
-  profileModal.classList.remove("hidden");
-}
-
-function closeProfileModal() {
-  profileModal.classList.add("hidden");
-}
-
-function applyTierToCard(points) {
+function applyTier(points) {
   const tier = getTier(points);
   tierNameEl.textContent = tier.name;
-
-  playerCard.classList.remove(
-    "tier-rookie",
-    "tier-elite",
-    "tier-pro",
-    "tier-mvp",
-    "tier-champion"
-  );
+  playerCard.classList.remove("tier-rookie","tier-elite","tier-pro","tier-mvp","tier-champion");
   playerCard.classList.add(tier.class);
 }
 
@@ -199,7 +168,7 @@ function renderMyStats() {
   statStreak.textContent = streak;
   statAch.textContent = ach;
 
-  applyTierToCard(points);
+  applyTier(points);
 
   const url = myProfile?.avatar_url || "";
   if (url) {
@@ -216,40 +185,30 @@ function setModeLabels() {
   if (!currentLeague) {
     modeLabel.textContent = "—";
     leagueLabelWrap.classList.add("hidden");
+    inviteBox.classList.add("hidden");
+    leagueBoard.classList.add("hidden");
     return;
   }
 
   if (currentLeague.is_solo) {
     modeLabel.textContent = "Solo Challenge";
     leagueLabelWrap.classList.add("hidden");
+    inviteBox.classList.add("hidden");
+    leagueBoard.classList.add("hidden");
   } else {
     modeLabel.textContent = "League";
     leagueLabelWrap.classList.remove("hidden");
     leagueLabel.textContent = currentLeague.name || "My League";
-  }
-
-  if (currentLeague.is_solo) {
-    leagueBoard.classList.add("hidden");
-    inviteBox.classList.add("hidden");
-  } else {
     leagueBoard.classList.remove("hidden");
   }
 }
 
-function setWhoAmI() {
-  const nm = myProfile?.name || "Player";
-  const em = myProfile?.email || currentUser?.email || "";
-  whoami.textContent = `${nm} (${em})`;
-}
-
 function updateHabitButtonsUI() {
-  for (const key of Object.keys(habitButtons)) {
-    habitButtons[key].disabled = false;
-    habitButtons[key].classList.remove("btn-disabled");
+  // reset
+  for (const k of Object.keys(habitButtons)) {
+    habitButtons[k].disabled = false;
+    habitButtons[k].classList.remove("btn-disabled");
   }
-
-  const stepsLogged =
-    todaysCheckins.has("steps_5k") || todaysCheckins.has("steps_10k");
 
   // disable already logged
   for (const habitKey of todaysCheckins) {
@@ -259,7 +218,8 @@ function updateHabitButtonsUI() {
     }
   }
 
-  // steps are mutually exclusive: if either logged, disable both
+  // steps mutual exclusive
+  const stepsLogged = todaysCheckins.has("steps_5k") || todaysCheckins.has("steps_10k");
   if (stepsLogged) {
     habitButtons.steps_5k.disabled = true;
     habitButtons.steps_10k.disabled = true;
@@ -269,7 +229,7 @@ function updateHabitButtonsUI() {
 }
 
 // ==============================
-// Data helpers
+// Supabase helpers
 // ==============================
 async function ensureProfile(user, fallbackName) {
   const { data: existing, error: selErr } = await sb
@@ -284,7 +244,7 @@ async function ensureProfile(user, fallbackName) {
   const profile = {
     user_id: user.id,
     email: user.email,
-    name: fallbackName || (user.user_metadata?.name || "Player"),
+    name: fallbackName || user.user_metadata?.name || "Player",
     points: 0,
     streak: 0,
     achievements_count: 0,
@@ -301,12 +261,18 @@ async function ensureProfile(user, fallbackName) {
   return inserted;
 }
 
-async function loadLeagueById(leagueId) {
+async function refreshMyProfile() {
   const { data, error } = await sb
-    .from("leagues")
+    .from("players")
     .select("*")
-    .eq("id", leagueId)
+    .eq("user_id", currentUser.id)
     .single();
+  if (error) throw error;
+  myProfile = data;
+}
+
+async function loadLeagueById(id) {
+  const { data, error } = await sb.from("leagues").select("*").eq("id", id).single();
   if (error) throw error;
   return data;
 }
@@ -318,9 +284,43 @@ async function getMyRoleInLeague(leagueId) {
     .eq("league_id", leagueId)
     .eq("user_id", currentUser.id)
     .maybeSingle();
-
   if (error) throw error;
   return data?.role || "member";
+}
+
+async function listMyLeagues() {
+  const { data: mem, error: memErr } = await sb
+    .from("league_members")
+    .select("league_id")
+    .eq("user_id", currentUser.id);
+  if (memErr) throw memErr;
+
+  const ids = (mem || []).map((r) => r.league_id);
+  if (ids.length === 0) return [];
+
+  const { data: leagues, error: lErr } = await sb
+    .from("leagues")
+    .select("*")
+    .in("id", ids);
+  if (lErr) throw lErr;
+
+  return leagues || [];
+}
+
+// RPCs you already set up
+async function rpcCreateLeague(name, solo = false) {
+  const { data, error } = await sb.rpc("create_league", { league_name: name, solo });
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] : data;
+}
+async function rpcJoinByCode(code) {
+  const { data, error } = await sb.rpc("join_league_by_code", { code });
+  if (error) throw error;
+  return data;
+}
+async function rpcSetCurrentLeague(lid) {
+  const { error } = await sb.rpc("set_current_league", { lid });
+  if (error) throw error;
 }
 
 async function loadTodaysCheckins() {
@@ -339,10 +339,26 @@ async function loadTodaysCheckins() {
     console.error("loadTodaysCheckins error:", error);
     return;
   }
-
   (data || []).forEach((row) => todaysCheckins.add(row.habit_key));
 }
 
+async function addPoints(pointsToAdd) {
+  const currentPoints = Number(myProfile?.points || 0);
+  const newPoints = Math.max(0, currentPoints + pointsToAdd);
+
+  const { data, error } = await sb
+    .from("players")
+    .update({ points: newPoints })
+    .eq("user_id", currentUser.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  myProfile = data;
+  renderMyStats();
+}
+
+// streak recompute from checkins (1+ habit/day counts)
 function computeStreakFromDates(dateStrings) {
   const set = new Set(dateStrings);
   let streak = 0;
@@ -352,9 +368,7 @@ function computeStreakFromDates(dateStrings) {
     if (set.has(iso)) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
-      continue;
-    }
-    break;
+    } else break;
   }
   return streak;
 }
@@ -389,115 +403,57 @@ async function recomputeAndSaveStreak() {
   }
 }
 
-async function addPoints(pointsToAdd) {
-  const currentPoints = Number(myProfile?.points || 0);
-  const newPoints = Math.max(0, currentPoints + pointsToAdd);
-
-  const { data, error } = await sb
-    .from("players")
-    .update({ points: newPoints })
-    .eq("user_id", currentUser.id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  myProfile = data;
-  renderMyStats();
-}
-
 // ==============================
-// League flows (RPC)
+// Leagues UI
 // ==============================
-async function rpcCreateLeague(name, solo = false) {
-  const { data, error } = await sb.rpc("create_league", {
-    league_name: name,
-    solo,
-  });
-  if (error) throw error;
-  return Array.isArray(data) ? data[0] : data;
-}
-
-async function rpcJoinByCode(code) {
-  const { data, error } = await sb.rpc("join_league_by_code", { code });
-  if (error) throw error;
-  return data;
-}
-
-async function rpcSetCurrentLeague(lid) {
-  const { error } = await sb.rpc("set_current_league", { lid });
-  if (error) throw error;
-}
-
-async function refreshMyProfile() {
-  const { data, error } = await sb
-    .from("players")
-    .select("*")
-    .eq("user_id", currentUser.id)
-    .single();
-
-  if (error) throw error;
-  myProfile = data;
-  renderMyStats();
-  setWhoAmI();
-}
-
-async function loadLeague() {
-  await refreshMyProfile();
-
-  if (!myProfile.current_league_id) {
-    currentLeague = null;
-    setModeLabels();
-    openModeModal();
+function renderLeaguesList(leagues) {
+  leaguesList.innerHTML = "";
+  if (!leagues || leagues.length === 0) {
+    leaguesEmpty.classList.remove("hidden");
     return;
   }
+  leaguesEmpty.classList.add("hidden");
 
-  currentLeague = await loadLeagueById(myProfile.current_league_id);
-  setModeLabels();
+  // Sort: solo first, then leagues
+  const sorted = [...leagues].sort((a,b) => Number(a.is_solo) - Number(b.is_solo));
 
-  // invite box only for owner in non-solo leagues
-  if (!currentLeague.is_solo) {
-    const role = await getMyRoleInLeague(currentLeague.id);
-    if (role === "owner" && currentLeague.invite_code) {
-      inviteBox.classList.remove("hidden");
-      inviteCodeEl.textContent = currentLeague.invite_code;
-      inviteLinkEl.value = `${window.location.origin}${window.location.pathname}?join=${currentLeague.invite_code}`;
-    } else {
-      inviteBox.classList.add("hidden");
-    }
+  for (const l of sorted) {
+    const isCurrent = myProfile?.current_league_id === l.id;
+    const badge = l.is_solo ? "SOLO" : "LEAGUE";
+
+    const btn = document.createElement("button");
+    btn.className =
+      "w-full text-left p-4 rounded-xl border transition " +
+      (isCurrent
+        ? "bg-slate-900 border-amber-400/60 ring-2 ring-amber-400/40"
+        : "bg-slate-900/60 border-slate-700 hover:bg-slate-900");
+    btn.innerHTML = `
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-extrabold truncate">${l.name || "Untitled"}</div>
+          <div class="text-xs text-slate-400">${badge}${l.is_solo ? " • just you" : " • private invite-only"}</div>
+        </div>
+        <div class="text-xs px-2 py-1 rounded-lg ${l.is_solo ? "bg-emerald-500/20 text-emerald-300" : "bg-indigo-500/20 text-indigo-300"}">
+          ${isCurrent ? "Current" : "Switch"}
+        </div>
+      </div>
+    `;
+
+    btn.addEventListener("click", async () => {
+      await rpcSetCurrentLeague(l.id);
+      await loadLeague();
+      showToast("Switched ✅");
+    });
+
+    leaguesList.appendChild(btn);
   }
-
-  await loadTodaysCheckins();
-  updateHabitButtonsUI();
-
-  if (!currentLeague.is_solo) {
-    await renderLeaderboard();
-  }
-}
-
-async function listMyLeagues() {
-  const { data: mem, error: memErr } = await sb
-    .from("league_members")
-    .select("league_id")
-    .eq("user_id", currentUser.id);
-
-  if (memErr) throw memErr;
-  const ids = (mem || []).map((r) => r.league_id);
-  if (ids.length === 0) return [];
-
-  const { data: leagues, error: lErr } = await sb
-    .from("leagues")
-    .select("*")
-    .in("id", ids);
-
-  if (lErr) throw lErr;
-  return leagues || [];
 }
 
 // ==============================
-// Leaderboard + profile modal
+// Leaderboard
 // ==============================
 async function renderLeaderboard() {
-  if (!currentLeague?.id) return;
+  if (!currentLeague?.id || currentLeague.is_solo) return;
 
   leaderboardList.innerHTML = `<div class="text-slate-400">Loading leaderboard...</div>`;
 
@@ -538,86 +494,76 @@ async function renderLeaderboard() {
 
   rows.sort((a, b) => b.points - a.points);
 
-  leaderboardList.innerHTML = rows
-    .map((p, idx) => {
-      const medal =
-        idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`;
-      const tier = getTier(p.points);
-      const isMe = p.user_id === currentUser.id;
+  leaderboardList.innerHTML = rows.map((p, idx) => {
+    const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`;
+    const tier = getTier(p.points);
+    const isMe = p.user_id === currentUser.id;
 
-      return `
-      <button class="w-full text-left bg-slate-900/60 border border-slate-700 rounded-xl p-4 hover:bg-slate-900 transition ${
-        isMe ? "ring-2 ring-amber-400" : ""
-      }" data-user="${p.user_id}">
+    return `
+      <div class="w-full text-left bg-slate-900/60 border border-slate-700 rounded-xl p-4">
         <div class="flex items-center gap-3">
           <div class="w-10 text-xl font-extrabold text-slate-300">${medal}</div>
           <div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 overflow-hidden flex items-center justify-center">
-            ${
-              p.avatar_url
-                ? `<img src="${p.avatar_url}" class="w-full h-full object-cover" />`
-                : `<div class="text-slate-500 font-bold">👤</div>`
-            }
+            ${p.avatar_url ? `<img src="${p.avatar_url}" class="w-full h-full object-cover" />` : `<div class="text-slate-500 font-bold">👤</div>`}
           </div>
           <div class="flex-1 min-w-0">
-            <div class="font-bold truncate">${p.name || "Player"} ${
-        isMe ? '<span class="text-xs text-amber-300">(you)</span>' : ""
-      }</div>
-            <div class="text-xs text-slate-400">${tier.name} • Streak ${
-        p.streak
-      } • Ach ${p.achievements_count}</div>
+            <div class="font-bold truncate">${p.name || "Player"} ${isMe ? '<span class="text-xs text-amber-300">(you)</span>' : ""}</div>
+            <div class="text-xs text-slate-400">${tier.name} • Streak ${p.streak} • Ach ${p.achievements_count}</div>
           </div>
           <div class="text-right">
-            <div class="text-2xl font-extrabold text-emerald-400">${
-              p.points
-            }</div>
+            <div class="text-2xl font-extrabold text-emerald-400">${p.points}</div>
             <div class="text-xs text-slate-500">points</div>
           </div>
         </div>
-      </button>
+      </div>
     `;
-    })
-    .join("");
-
-  leaderboardList.querySelectorAll("button[data-user]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const uid = btn.getAttribute("data-user");
-      await openOtherPlayerProfile(uid);
-    });
-  });
+  }).join("");
 }
 
-async function openOtherPlayerProfile(userId) {
-  const { data, error } = await sb
-    .from("players")
-    .select("user_id,name,points,streak,achievements_count,avatar_url")
-    .eq("user_id", userId)
-    .single();
+// ==============================
+// League loader (and auto-solo)
+// ==============================
+async function loadLeague() {
+  await refreshMyProfile();
 
-  if (error) {
-    showToast("Can't view that profile (not in your league).", false);
-    return;
+  // Auto create Solo if user has no leagues at all
+  const leagues = await listMyLeagues();
+  renderLeaguesList(leagues);
+
+  if (!myProfile.current_league_id) {
+    if (leagues.length === 0) {
+      // Create Solo automatically
+      await rpcCreateLeague("Solo Challenge", true);
+      await refreshMyProfile();
+    } else {
+      // If they have leagues, set current to first one
+      await rpcSetCurrentLeague(leagues[0].id);
+      await refreshMyProfile();
+    }
   }
 
-  const points = Number(data.points || 0);
-  const tier = getTier(points);
+  currentLeague = await loadLeagueById(myProfile.current_league_id);
+  setModeLabels();
 
-  pmName.textContent = data.name || "Player";
-  pmTier.textContent = `${tier.name} • ${points} pts`;
-
-  pmStreak.textContent = Number(data.streak || 0);
-  pmAch.textContent = Number(data.achievements_count || 0);
-  pmPoints.textContent = points;
-
-  if (data.avatar_url) {
-    pmAvatar.src = data.avatar_url;
-    pmAvatar.classList.remove("hidden");
-    pmAvatarFallback.classList.add("hidden");
-  } else {
-    pmAvatar.classList.add("hidden");
-    pmAvatarFallback.classList.remove("hidden");
+  // Invite box (owner-only + not solo)
+  if (!currentLeague.is_solo) {
+    const role = await getMyRoleInLeague(currentLeague.id);
+    if (role === "owner" && currentLeague.invite_code) {
+      inviteBox.classList.remove("hidden");
+      inviteCodeEl.textContent = currentLeague.invite_code;
+      inviteLinkEl.value = `${window.location.origin}${window.location.pathname}?join=${currentLeague.invite_code}`;
+    } else {
+      inviteBox.classList.add("hidden");
+    }
   }
 
-  openProfileModal();
+  await loadTodaysCheckins();
+  updateHabitButtonsUI();
+  await renderLeaderboard();
+
+  // Refresh leagues list highlight
+  const leagues2 = await listMyLeagues();
+  renderLeaguesList(leagues2);
 }
 
 // ==============================
@@ -628,16 +574,12 @@ function attachHabitButton(habitKey, buttonEl) {
 
   buttonEl.addEventListener("click", async () => {
     if (!currentLeague?.id) {
-      showToast("Choose Solo or join a league first.", false);
-      openModeModal();
+      showToast("Pick a mode first (Solo or League).", false);
       return;
     }
 
-    const stepsLogged =
-      todaysCheckins.has("steps_5k") || todaysCheckins.has("steps_10k");
-
-    const already =
-      todaysCheckins.has(habitKey) || (habit.group === "steps" && stepsLogged);
+    const stepsLogged = todaysCheckins.has("steps_5k") || todaysCheckins.has("steps_10k");
+    const already = todaysCheckins.has(habitKey) || (habit.group === "steps" && stepsLogged);
 
     if (already) {
       showToast(`Already logged: ${habit.label} today ✅`, false);
@@ -656,6 +598,7 @@ function attachHabitButton(habitKey, buttonEl) {
       const { error } = await sb.from("checkins").insert(payload);
 
       if (error) {
+        // 409/unique = already logged
         if (String(error.code) === "23505" || error.status === 409) {
           todaysCheckins.add(habitKey);
           updateHabitButtonsUI();
@@ -665,18 +608,14 @@ function attachHabitButton(habitKey, buttonEl) {
         throw error;
       }
 
-      // refresh checkins from DB (important for steps mutual exclusive)
       await loadTodaysCheckins();
-
       await addPoints(habit.points);
       await recomputeAndSaveStreak();
       updateHabitButtonsUI();
 
       showToast(`+${habit.points} pts for ${habit.label}! 🎯`, true);
 
-      if (!currentLeague.is_solo) {
-        await renderLeaderboard();
-      }
+      if (!currentLeague.is_solo) await renderLeaderboard();
     } catch (e) {
       console.error("Error logging habit:", e);
       showToast(`Error logging habit: ${e.message || e}`, false);
@@ -696,7 +635,6 @@ async function uploadAvatar(file) {
     upsert: true,
     contentType: file.type || "image/png",
   });
-
   if (upErr) throw upErr;
 
   const { data } = sb.storage.from("avatars").getPublicUrl(path);
@@ -747,9 +685,7 @@ btnSignup.addEventListener("click", async () => {
     return;
   }
 
-  setAuthMsg(
-    "Signup successful! Check your email, click the verification link, then log in."
-  );
+  setAuthMsg("Signup successful! Check your email, click the verification link, then log in.");
 });
 
 btnLogin.addEventListener("click", async () => {
@@ -763,7 +699,6 @@ btnLogin.addEventListener("click", async () => {
     setAuthMsg(`Login error: ${error.message}`);
     return;
   }
-
   if (!data?.user) {
     setAuthMsg("Login failed. Please try again.");
     return;
@@ -782,23 +717,12 @@ btnLogout.addEventListener("click", async () => {
 });
 
 // ==============================
-// Mode modal handlers
+// Leagues buttons
 // ==============================
-btnCloseMode.addEventListener("click", closeModeModal);
-
-btnStartSolo.addEventListener("click", async () => {
-  try {
-    btnStartSolo.disabled = true;
-    await rpcCreateLeague("Solo Challenge", true);
-    closeModeModal();
-    await loadLeague();
-    showToast("Solo mode started ✅");
-  } catch (e) {
-    console.error(e);
-    showToast(e.message || String(e), false);
-  } finally {
-    btnStartSolo.disabled = false;
-  }
+btnLeaguesRefresh.addEventListener("click", async () => {
+  const leagues = await listMyLeagues();
+  renderLeaguesList(leagues);
+  showToast("Leagues refreshed ✅");
 });
 
 btnCreateLeague.addEventListener("click", async () => {
@@ -807,16 +731,9 @@ btnCreateLeague.addEventListener("click", async () => {
 
   try {
     btnCreateLeague.disabled = true;
-    const res = await rpcCreateLeague(nm, false);
-    closeModeModal();
+    await rpcCreateLeague(nm, false);
     await loadLeague();
     showToast("League created ✅");
-
-    if (res?.invite_code) {
-      inviteBox.classList.remove("hidden");
-      inviteCodeEl.textContent = res.invite_code;
-      inviteLinkEl.value = `${window.location.origin}${window.location.pathname}?join=${res.invite_code}`;
-    }
   } catch (e) {
     console.error(e);
     showToast(e.message || String(e), false);
@@ -833,12 +750,11 @@ btnJoinLeague.addEventListener("click", async () => {
     btnJoinLeague.disabled = true;
     await rpcJoinByCode(code);
 
-    // remove join param
+    // Remove join param if present
     const url = new URL(window.location.href);
     url.searchParams.delete("join");
     window.history.replaceState({}, "", url.toString());
 
-    closeModeModal();
     await loadLeague();
     showToast("Joined league ✅");
   } catch (e) {
@@ -849,46 +765,17 @@ btnJoinLeague.addEventListener("click", async () => {
   }
 });
 
-btnSwitchLeague.addEventListener("click", async () => {
+btnStartSolo.addEventListener("click", async () => {
   try {
-    const leagues = await listMyLeagues();
-    const currentId = myProfile?.current_league_id || "";
-
-    const lines = leagues.map((l) => {
-      const tag = l.id === currentId ? " (current)" : "";
-      return `${l.id} :: ${l.is_solo ? "SOLO" : "LEAGUE"} :: ${l.name}${tag}`;
-    });
-
-    const choice = prompt(
-      "Paste a league ID to switch to, OR type JOIN:CODE to join, OR type CREATE:Name to create.\n\n" +
-        (lines.length ? "Your leagues:\n" + lines.join("\n") : "You have no leagues yet.")
-    );
-
-    if (!choice) return;
-    const raw = choice.trim();
-
-    if (raw.toUpperCase().startsWith("JOIN:")) {
-      const code = raw.split(":").slice(1).join(":").trim().toUpperCase();
-      if (!code) return showToast("Missing code.", false);
-      await rpcJoinByCode(code);
-      await loadLeague();
-      return showToast("Joined league ✅");
-    }
-
-    if (raw.toUpperCase().startsWith("CREATE:")) {
-      const nm = raw.split(":").slice(1).join(":").trim();
-      if (!nm) return showToast("Missing league name.", false);
-      await rpcCreateLeague(nm, false);
-      await loadLeague();
-      return showToast("League created ✅");
-    }
-
-    await rpcSetCurrentLeague(raw);
+    btnStartSolo.disabled = true;
+    await rpcCreateLeague("Solo Challenge", true);
     await loadLeague();
-    showToast("Switched ✅");
+    showToast("Switched to Solo ✅");
   } catch (e) {
     console.error(e);
     showToast(e.message || String(e), false);
+  } finally {
+    btnStartSolo.disabled = false;
   }
 });
 
@@ -897,26 +784,50 @@ btnCopyInvite?.addEventListener("click", async () => {
     await navigator.clipboard.writeText(inviteLinkEl.value);
     showToast("Invite link copied ✅");
   } catch {
-    showToast("Couldn't copy link. Copy it manually.", false);
+    showToast("Couldn't copy link. Copy manually.", false);
   }
 });
 
 btnBoardRefresh?.addEventListener("click", async () => {
-  if (!currentLeague?.id || currentLeague.is_solo) return;
   await renderLeaderboard();
 });
 
-btnCloseProfile.addEventListener("click", closeProfileModal);
+// ==============================
+// Tutorial
+// ==============================
+let tourStep = 0;
+const tourSteps = [
+  { el: sectionProfile, text: "This is your Profile: photo, tier, points, streak, achievements." },
+  { el: sectionLeagues, text: "This is Leagues: create/join private leagues, or switch to Solo anytime." },
+  { el: sectionPlay, text: "This is Play: log habits once per day. Logging at least 1 habit counts toward your streak." },
+];
 
-avatarInput.addEventListener("change", async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  try {
-    await uploadAvatar(file);
-  } catch (err) {
-    console.error(err);
-    avatarStatus.textContent = `Upload error: ${err.message || err}`;
-  }
+function clearTourSpotlights() {
+  [sectionProfile, sectionLeagues, sectionPlay].forEach(el => el.classList.remove("tour-spotlight"));
+}
+
+function showTour(stepIdx) {
+  clearTourSpotlights();
+  tourStep = stepIdx;
+
+  const step = tourSteps[tourStep];
+  step.el.classList.add("tour-spotlight");
+  tourText.textContent = step.text;
+
+  tourOverlay.classList.remove("hidden");
+}
+
+function endTour() {
+  clearTourSpotlights();
+  tourOverlay.classList.add("hidden");
+  localStorage.setItem("hcl_tour_seen", "true");
+}
+
+btnStartTour.addEventListener("click", () => showTour(0));
+btnTourSkip.addEventListener("click", endTour);
+btnTourNext.addEventListener("click", () => {
+  if (tourStep >= tourSteps.length - 1) return endTour();
+  showTour(tourStep + 1);
 });
 
 // ==============================
@@ -932,14 +843,13 @@ async function boot() {
   }
 
   currentUser = session.user;
-
   myProfile = await ensureProfile(currentUser, currentUser.user_metadata?.name || "Player");
 
   showGame();
   setWhoAmI();
   renderMyStats();
 
-  // prevent duplicate listeners by cloning buttons once per boot
+  // avoid duplicate listeners by cloning habit buttons
   for (const [k, btn] of Object.entries(habitButtons)) {
     const clone = btn.cloneNode(true);
     btn.parentNode.replaceChild(clone, btn);
@@ -949,13 +859,36 @@ async function boot() {
     attachHabitButton(k, btn);
   }
 
-  await loadLeague();
+  avatarInput.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try { await uploadAvatar(file); }
+    catch (err) {
+      console.error(err);
+      avatarStatus.textContent = `Upload error: ${err.message || err}`;
+    }
+  });
 
-  // if invite link contains ?join=CODE and user has no league set, modal opens prefilled
+  // Auto-join from invite link (?join=CODE)
   const params = new URLSearchParams(window.location.search);
   const join = params.get("join");
-  if (join && !myProfile.current_league_id) {
-    openModeModal();
+  if (join) {
+    try {
+      await rpcJoinByCode(join.trim().toUpperCase());
+      const url = new URL(window.location.href);
+      url.searchParams.delete("join");
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) {
+      console.error(e);
+      showToast("Invite code invalid or league full.", false);
+    }
+  }
+
+  await loadLeague();
+
+  // Show tutorial once
+  if (!localStorage.getItem("hcl_tour_seen")) {
+    setTimeout(() => showTour(0), 600);
   }
 }
 
