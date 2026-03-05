@@ -5,16 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Health Challenge League</title>
 
-  <!-- Tailwind CDN (fine for MVP) -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-
-  <!-- Supabase JS (must load BEFORE app.js) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-  <style>
-    * { font-family: 'Outfit', sans-serif; }
-  </style>
+  <style>* { font-family: 'Outfit', sans-serif; }</style>
 </head>
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
@@ -32,14 +27,10 @@
     <div id="auth-box" class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-6 max-w-xl">
       <div class="space-y-2">
         <h2 class="text-xl font-bold">Create account</h2>
-        <input id="su-email" type="email" placeholder="Email"
-          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="su-pass" type="password" placeholder="Password"
-          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="su-name" type="text" placeholder="Display name"
-          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <button id="btn-signup"
-          class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+        <input id="su-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="su-name" type="text" placeholder="Display name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-signup" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
           Sign up (verification email)
         </button>
         <p class="text-xs text-slate-400">After signup, check your inbox and click the verification link.</p>
@@ -49,12 +40,9 @@
 
       <div class="space-y-2">
         <h2 class="text-xl font-bold">Log in</h2>
-        <input id="li-email" type="email" placeholder="Email"
-          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <input id="li-pass" type="password" placeholder="Password"
-          class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <button id="btn-login"
-          class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
+        <input id="li-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <input id="li-pass" type="password" placeholder="Password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+        <button id="btn-login" class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
           Log in
         </button>
       </div>
@@ -69,25 +57,22 @@
         <div>
           <div class="text-slate-400 text-sm">Logged in as</div>
           <div id="whoami" class="text-2xl font-extrabold"></div>
+          <div id="active-league-badge" class="text-slate-400 text-sm mt-1"></div>
         </div>
         <button id="btn-logout" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">
           Log out
         </button>
       </div>
 
-      <!-- MODE CHOOSER MODAL -->
+      <!-- CREATE / JOIN MODAL (NO SOLO) -->
       <div id="mode-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
         <div class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4">
-          <div class="text-2xl font-extrabold">Choose how you want to play</div>
+          <div class="text-2xl font-extrabold">Leagues</div>
           <p class="text-slate-300 text-sm">
-            You always have your personal tracking. Leagues are private groups with their own leaderboard.
+            Leagues are private groups. Your points in each league start at <b>0</b> when you join.
           </p>
 
           <div class="grid gap-3">
-            <button id="btn-mode-solo" class="w-full font-bold py-3 rounded-xl bg-slate-700 hover:bg-slate-600">
-              Solo (just my stats)
-            </button>
-
             <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4 space-y-3">
               <div class="font-bold">Create a private league</div>
               <input id="create-league-name" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700"
@@ -125,24 +110,28 @@
             <img id="avatar-img" src="" alt="Avatar"
               class="w-20 h-20 rounded-2xl object-cover border border-slate-700 bg-slate-900" />
             <div class="min-w-0">
-              <div class="text-slate-400 text-sm">Current League Tier</div>
-              <div id="tier-name" class="text-3xl font-extrabold">Rookie</div>
-              <div class="text-slate-400 text-sm">Updates automatically as points increase.</div>
+              <div class="text-slate-400 text-sm">League Tier (selected league)</div>
+              <div id="tier-name" class="text-3xl font-extrabold">—</div>
+              <div class="text-slate-400 text-sm" id="tier-subtext">Join/select a league to see tier.</div>
             </div>
           </div>
 
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-2 gap-3">
             <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
-              <div class="text-slate-400 text-sm">Streak</div>
+              <div class="text-slate-400 text-sm">Streak (global)</div>
               <div id="streak-num" class="text-3xl font-extrabold text-amber-400">0</div>
             </div>
             <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
-              <div class="text-slate-400 text-sm">Achievements</div>
+              <div class="text-slate-400 text-sm">Achievements (global)</div>
               <div id="ach-num" class="text-3xl font-extrabold">0</div>
             </div>
             <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
-              <div class="text-slate-400 text-sm">Points</div>
+              <div class="text-slate-400 text-sm">Total Points (global)</div>
               <div id="points-num" class="text-3xl font-extrabold text-emerald-400">0</div>
+            </div>
+            <div class="rounded-2xl bg-slate-900 border border-slate-700 p-4">
+              <div class="text-slate-400 text-sm">League Points (selected)</div>
+              <div id="league-points-num" class="text-3xl font-extrabold text-cyan-300">—</div>
             </div>
           </div>
 
@@ -179,46 +168,28 @@
           </div>
 
           <div class="grid sm:grid-cols-2 gap-3">
-            <button id="btn-log-water" class="habit-btn w-full font-bold py-5 rounded-2xl bg-cyan-600 hover:bg-cyan-500">
-              Log Water (+5)
-            </button>
-            <button id="btn-log-protein" class="habit-btn w-full font-bold py-5 rounded-2xl bg-red-600 hover:bg-red-500">
-              Log Protein (+8)
-            </button>
+            <button id="btn-log-water" class="habit-btn w-full font-bold py-5 rounded-2xl bg-cyan-600 hover:bg-cyan-500">Log Water (+5)</button>
+            <button id="btn-log-protein" class="habit-btn w-full font-bold py-5 rounded-2xl bg-red-600 hover:bg-red-500">Log Protein (+8)</button>
 
-            <button id="btn-log-steps-5k" class="habit-btn steps-btn w-full font-bold py-5 rounded-2xl bg-blue-600 hover:bg-blue-500">
-              Log Steps 5K–9.9K (+6)
-            </button>
-            <button id="btn-log-steps-10k" class="habit-btn steps-btn w-full font-bold py-5 rounded-2xl bg-indigo-700 hover:bg-indigo-600">
-              Log Steps 10K+ (+10)
-            </button>
+            <button id="btn-log-steps-5k" class="habit-btn steps-btn w-full font-bold py-5 rounded-2xl bg-blue-600 hover:bg-blue-500">Log Steps 5K–9.9K (+6)</button>
+            <button id="btn-log-steps-10k" class="habit-btn steps-btn w-full font-bold py-5 rounded-2xl bg-indigo-700 hover:bg-indigo-600">Log Steps 10K+ (+10)</button>
 
-            <button id="btn-log-workout" class="habit-btn w-full font-bold py-5 rounded-2xl bg-emerald-700 hover:bg-emerald-600">
-              Log Workout (+12)
-            </button>
-            <button id="btn-log-reading" class="habit-btn w-full font-bold py-5 rounded-2xl bg-orange-600 hover:bg-orange-500">
-              Log Reading (+9)
-            </button>
+            <button id="btn-log-workout" class="habit-btn w-full font-bold py-5 rounded-2xl bg-emerald-700 hover:bg-emerald-600">Log Workout (+12)</button>
+            <button id="btn-log-reading" class="habit-btn w-full font-bold py-5 rounded-2xl bg-orange-600 hover:bg-orange-500">Log Reading (+9)</button>
 
-            <button id="btn-log-sleep" class="habit-btn w-full font-bold py-5 rounded-2xl bg-purple-700 hover:bg-purple-600">
-              Log Sleep (+11)
-            </button>
-            <button id="btn-log-nosugar" class="habit-btn w-full font-bold py-5 rounded-2xl bg-pink-700 hover:bg-pink-600">
-              Log No Added Sugar (+7)
-            </button>
+            <button id="btn-log-sleep" class="habit-btn w-full font-bold py-5 rounded-2xl bg-purple-700 hover:bg-purple-600">Log Sleep (+11)</button>
+            <button id="btn-log-nosugar" class="habit-btn w-full font-bold py-5 rounded-2xl bg-pink-700 hover:bg-pink-600">Log No Added Sugar (+7)</button>
 
-            <button id="btn-log-nocoke" class="habit-btn sm:col-span-2 w-full font-bold py-5 rounded-2xl bg-amber-700 hover:bg-amber-600">
-              Log No Coke (+5)
-            </button>
+            <button id="btn-log-nocoke" class="habit-btn sm:col-span-2 w-full font-bold py-5 rounded-2xl bg-amber-700 hover:bg-amber-600">Log No Coke (+5)</button>
           </div>
 
           <div class="text-xs text-slate-400">
-            If you miss a day (no habits logged), your streak resets to 0.
+            Streak rule: log at least 1 habit today to keep your streak. Miss a day and it resets to 0.
           </div>
         </div>
       </div>
 
-      <!-- LEAGUE HUB (full page section) -->
+      <!-- LEAGUE HUB -->
       <div id="league-detail" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-5">
         <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div class="space-y-1">
@@ -228,12 +199,8 @@
           </div>
 
           <div class="flex gap-2">
-            <button id="btn-copy-code" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">
-              Copy invite code
-            </button>
-            <button id="btn-league-refresh" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">
-              Refresh
-            </button>
+            <button id="btn-copy-code" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">Copy invite code</button>
+            <button id="btn-league-refresh" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600">Refresh</button>
           </div>
         </div>
 
@@ -241,9 +208,8 @@
           <div class="lg:col-span-2 bg-slate-900 border border-slate-700 rounded-2xl p-5 space-y-4">
             <div class="flex items-center justify-between">
               <div class="text-2xl font-extrabold">🏆 League Leaderboard</div>
-              <div class="text-slate-400 text-sm">Top 20 players</div>
+              <div class="text-slate-400 text-sm">Points since each member joined</div>
             </div>
-
             <div id="league-leaderboard" class="space-y-3"></div>
           </div>
 
@@ -251,19 +217,15 @@
             <div class="text-2xl font-extrabold">Members</div>
             <div id="league-members" class="space-y-2"></div>
 
-            <!-- owner tools -->
             <div id="league-owner-tools" class="hidden mt-5 border-t border-slate-700 pt-4">
               <div class="font-bold mb-2">Owner tools</div>
 
               <div class="grid sm:grid-cols-2 gap-2">
                 <input id="league-name-input" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="New league name" />
-                <button id="btn-update-league-name" class="w-full font-bold py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900">
-                  Update name
-                </button>
+                <button id="btn-update-league-name" class="w-full font-bold py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900">Update name</button>
               </div>
 
-              <button id="btn-delete-league"
-                class="mt-3 w-full font-bold py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white">
+              <button id="btn-delete-league" class="mt-3 w-full font-bold py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white">
                 Delete league (owner only)
               </button>
 
