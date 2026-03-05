@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Health Challenge League</title>
 
-  <!-- Tailwind CDN (fine for MVP/testing) -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-
-  <!-- Supabase JS (MUST load before app.js) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -25,17 +22,22 @@
       border-image: linear-gradient(90deg, #f87171, #fb923c, #facc15, #4ade80, #60a5fa, #a78bfa) 1 !important;
     }
 
-    /* Disabled button look */
-    .btn-disabled {
-      opacity: .45 !important;
-      cursor: not-allowed !important;
-      filter: grayscale(0.2);
+    .btn-disabled { opacity: .45 !important; cursor: not-allowed !important; }
+
+    /* Simple tutorial highlight */
+    .tour-spotlight {
+      outline: 3px solid rgba(251,191,36,.95);
+      outline-offset: 4px;
+      border-radius: 18px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.65);
+      position: relative;
+      z-index: 60;
     }
   </style>
 </head>
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
-  <div class="max-w-5xl mx-auto">
+  <div class="max-w-6xl mx-auto">
     <h1 class="text-4xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
       Health Challenge League
     </h1>
@@ -68,7 +70,7 @@
       <div id="auth-msg" class="text-sm text-slate-300"></div>
     </div>
 
-    <!-- GAME BOX -->
+    <!-- GAME / DASHBOARD -->
     <div id="game-box" class="hidden mt-6 space-y-6">
 
       <!-- Top bar -->
@@ -86,11 +88,9 @@
           </div>
 
           <div class="flex gap-2">
-            <!-- THIS is the missing button you asked about -->
-            <button id="btn-switch-league" class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-bold">
-              Create / Join League
+            <button id="btn-start-tour" class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-bold">
+              Tutorial
             </button>
-
             <button id="btn-logout" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">
               Log out
             </button>
@@ -112,18 +112,24 @@
         </div>
       </div>
 
-      <!-- Profile card -->
-      <div id="player-card" class="bg-slate-800/60 border-2 border-slate-700 rounded-2xl p-6">
-        <div class="flex items-center gap-4">
-          <div class="w-20 h-20 rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden flex items-center justify-center">
-            <img id="avatar-img" class="hidden w-full h-full object-cover" alt="avatar" />
-            <div id="avatar-fallback" class="text-3xl text-slate-500">👤</div>
-          </div>
+      <!-- Main grid -->
+      <div class="grid lg:grid-cols-3 gap-6">
+        <!-- LEFT: PROFILE -->
+        <div id="section-profile" class="lg:col-span-1 space-y-6">
+          <div id="player-card" class="bg-slate-800/60 border-2 border-slate-700 rounded-2xl p-6">
+            <div class="flex items-center gap-4">
+              <div class="w-20 h-20 rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden flex items-center justify-center">
+                <img id="avatar-img" class="hidden w-full h-full object-cover" alt="avatar" />
+                <div id="avatar-fallback" class="text-3xl text-slate-500">👤</div>
+              </div>
 
-          <div class="flex-1">
-            <div class="text-slate-400 text-sm">Your tier</div>
-            <div id="tier-name" class="text-2xl font-extrabold">Rookie</div>
-            <div class="mt-2 grid grid-cols-3 gap-3 text-center">
+              <div class="flex-1">
+                <div class="text-slate-400 text-sm">Your tier</div>
+                <div id="tier-name" class="text-2xl font-extrabold">Rookie</div>
+              </div>
+            </div>
+
+            <div class="mt-4 grid grid-cols-3 gap-3 text-center">
               <div class="bg-slate-900 border border-slate-700 rounded-xl p-3">
                 <div class="text-xs text-slate-400">Points</div>
                 <div id="stat-points" class="text-xl font-extrabold text-emerald-400">0</div>
@@ -137,124 +143,113 @@
                 <div id="stat-achievements" class="text-xl font-extrabold text-sky-300">0</div>
               </div>
             </div>
+
+            <div class="mt-5">
+              <div class="text-sm font-bold text-slate-200 mb-2">Profile photo</div>
+              <div class="flex flex-col gap-2">
+                <input id="avatar-input" type="file" accept="image/*" class="block w-full text-sm text-slate-200
+                  file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                  file:text-sm file:font-bold file:bg-slate-700 file:text-white
+                  hover:file:bg-slate-600" />
+                <div id="avatar-status" class="text-xs text-slate-400"></div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="mt-5">
-          <div class="text-sm font-bold text-slate-200 mb-2">Profile photo</div>
-          <div class="flex flex-col md:flex-row md:items-center gap-3">
-            <input id="avatar-input" type="file" accept="image/*" class="block w-full text-sm text-slate-200
-              file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
-              file:text-sm file:font-bold file:bg-slate-700 file:text-white
-              hover:file:bg-slate-600" />
-            <div id="avatar-status" class="text-xs text-slate-400"></div>
+        <!-- MIDDLE: LEAGUES -->
+        <div id="section-leagues" class="lg:col-span-1 space-y-6">
+          <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-xl font-extrabold">Leagues</h2>
+              <button id="btn-leagues-refresh" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">
+                Refresh
+              </button>
+            </div>
+
+            <div class="text-sm text-slate-400 mb-4">
+              Your current mode is shown at the top. You can create or join private leagues anytime.
+            </div>
+
+            <div id="leagues-empty" class="hidden p-4 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 text-sm">
+              You haven't created or joined any leagues! Create or join one below.
+            </div>
+
+            <div id="leagues-list" class="space-y-2"></div>
+
+            <hr class="border-slate-700 my-5">
+
+            <div class="grid gap-4">
+              <div class="p-4 rounded-xl bg-slate-900 border border-slate-700">
+                <div class="font-bold mb-2">Create a private league</div>
+                <input id="new-league-name" placeholder="League name (ex: Team Fire 🔥)" class="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 mb-3" />
+                <button id="btn-create-league" class="w-full py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-extrabold">
+                  Create League
+                </button>
+                <div class="text-xs text-slate-400 mt-2">Up to 20 players per league.</div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-900 border border-slate-700">
+                <div class="font-bold mb-2">Join a private league</div>
+                <input id="join-code" placeholder="Invite code (ex: A1B2C3)" class="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 mb-3" />
+                <button id="btn-join-league" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold">
+                  Join League
+                </button>
+              </div>
+
+              <button id="btn-start-solo" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-extrabold">
+                Switch to Solo Challenge
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Habit buttons -->
-      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-        <h2 class="text-xl font-extrabold mb-3">Daily habits</h2>
-        <p class="text-sm text-slate-400 mb-4">Each habit can be logged once per day. Steps are either 5K OR 10K.</p>
+        <!-- RIGHT: PLAY -->
+        <div id="section-play" class="lg:col-span-1 space-y-6">
+          <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+            <h2 class="text-xl font-extrabold mb-3">Play</h2>
+            <p class="text-sm text-slate-400 mb-4">Each habit can be logged once per day. Steps are either 5K OR 10K.</p>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <button id="btn-log-water" class="py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-extrabold">💧 Water (+5)</button>
-          <button id="btn-log-protein" class="py-3 rounded-xl bg-red-500 hover:bg-red-400 text-slate-900 font-extrabold">🥩 Protein (+8)</button>
+            <div class="grid grid-cols-2 gap-3">
+              <button id="btn-log-water" class="py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-extrabold">💧 Water (+5)</button>
+              <button id="btn-log-protein" class="py-3 rounded-xl bg-red-500 hover:bg-red-400 text-slate-900 font-extrabold">🥩 Protein (+8)</button>
 
-          <button id="btn-log-steps-5k" class="py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-900 font-extrabold">🚶 Steps 5K (+6)</button>
-          <button id="btn-log-steps-10k" class="py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-slate-900 font-extrabold">🚶 Steps 10K (+10)</button>
+              <button id="btn-log-steps-5k" class="py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-900 font-extrabold">🚶 Steps 5K (+6)</button>
+              <button id="btn-log-steps-10k" class="py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-slate-900 font-extrabold">🚶 Steps 10K (+10)</button>
 
-          <button id="btn-log-workout" class="py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-extrabold">💪 Workout (+12)</button>
-          <button id="btn-log-reading" class="py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-900 font-extrabold">📚 Reading (+9)</button>
-          <button id="btn-log-sleep" class="py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-extrabold">😴 Sleep (+11)</button>
-          <button id="btn-log-no-sugar" class="py-3 rounded-xl bg-pink-500 hover:bg-pink-400 text-slate-900 font-extrabold">🍬 No Sugar (+7)</button>
-          <button id="btn-log-no-coke" class="py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold">🥤 No Coke (+5)</button>
+              <button id="btn-log-workout" class="py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-extrabold">💪 Workout (+12)</button>
+              <button id="btn-log-reading" class="py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-900 font-extrabold">📚 Reading (+9)</button>
+
+              <button id="btn-log-sleep" class="py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-extrabold">😴 Sleep (+11)</button>
+              <button id="btn-log-no-sugar" class="py-3 rounded-xl bg-pink-500 hover:bg-pink-400 text-slate-900 font-extrabold">🍬 No Sugar (+7)</button>
+
+              <button id="btn-log-no-coke" class="col-span-2 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold">🥤 No Coke (+5)</button>
+            </div>
+          </div>
+
+          <div id="league-board" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-xl font-extrabold">League leaderboard</h2>
+              <button id="btn-leaderboard-refresh" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">
+                Refresh
+              </button>
+            </div>
+            <div id="leaderboard-list" class="space-y-3"></div>
+          </div>
         </div>
-      </div>
-
-      <!-- Leaderboard (league-only) -->
-      <div id="league-board" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xl font-extrabold">League leaderboard</h2>
-          <button id="btn-leaderboard-refresh" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">
-            Refresh
-          </button>
-        </div>
-        <div id="leaderboard-list" class="space-y-3"></div>
       </div>
     </div>
   </div>
 
-  <!-- MODE MODAL: Solo / Create League / Join League -->
-  <div id="mode-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <div class="text-xl font-extrabold">Choose how you want to play</div>
-        <button id="btn-close-mode" class="text-slate-400 hover:text-white text-2xl">×</button>
-      </div>
-
-      <div class="grid gap-4">
-        <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700">
-          <div class="font-bold mb-1">Solo Challenge</div>
-          <div class="text-sm text-slate-300 mb-3">No leaderboard — just your stats, streak, achievements.</div>
-          <button id="btn-start-solo" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-extrabold">
-            Start Solo
-          </button>
-        </div>
-
-        <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700">
-          <div class="font-bold mb-1">Create a private league</div>
-          <div class="text-sm text-slate-300 mb-3">Up to 20 players. You’ll get an invite code/link.</div>
-          <input id="new-league-name" placeholder="League name (ex: Team Fire 🔥)" class="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 mb-3" />
-          <button id="btn-create-league" class="w-full py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-extrabold">
-            Create League
-          </button>
-        </div>
-
-        <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700">
-          <div class="font-bold mb-1">Join a private league</div>
-          <div class="text-sm text-slate-300 mb-3">Paste an invite code someone sent you.</div>
-          <input id="join-code" placeholder="Invite code (ex: A1B2C3)" class="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 mb-3" />
-          <button id="btn-join-league" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold">
-            Join League
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- PROFILE MODAL (clicking other players in leaderboard opens this) -->
-  <div id="profile-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <div class="text-xl font-extrabold">Player Profile</div>
-        <button id="btn-close-profile" class="text-slate-400 hover:text-white text-2xl">×</button>
-      </div>
-
-      <div class="flex items-center gap-4">
-        <div class="w-20 h-20 rounded-2xl bg-slate-950 border border-slate-700 overflow-hidden flex items-center justify-center">
-          <img id="pm-avatar" class="hidden w-full h-full object-cover" alt="avatar" />
-          <div id="pm-avatar-fallback" class="text-3xl text-slate-500">👤</div>
-        </div>
-        <div class="flex-1">
-          <div id="pm-name" class="text-2xl font-extrabold">Player</div>
-          <div id="pm-tier" class="text-sm text-slate-300">Rookie • 0 pts</div>
-        </div>
-      </div>
-
-      <div class="mt-4 grid grid-cols-3 gap-3 text-center">
-        <div class="bg-slate-950 border border-slate-700 rounded-xl p-3">
-          <div class="text-xs text-slate-400">Points</div>
-          <div id="pm-points" class="text-xl font-extrabold text-emerald-400">0</div>
-        </div>
-        <div class="bg-slate-950 border border-slate-700 rounded-xl p-3">
-          <div class="text-xs text-slate-400">Streak</div>
-          <div id="pm-streak" class="text-xl font-extrabold text-amber-300">0</div>
-        </div>
-        <div class="bg-slate-950 border border-slate-700 rounded-xl p-3">
-          <div class="text-xs text-slate-400">Achievements</div>
-          <div id="pm-ach" class="text-xl font-extrabold text-sky-300">0</div>
-        </div>
+  <!-- Tutorial overlay -->
+  <div id="tour-overlay" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/70"></div>
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-[min(700px,92vw)] bg-slate-900 border border-slate-700 rounded-2xl p-5 shadow-2xl">
+      <div class="text-xl font-extrabold mb-1">Quick Tour</div>
+      <div id="tour-text" class="text-slate-300 text-sm mb-4">Welcome!</div>
+      <div class="flex justify-between gap-3">
+        <button id="btn-tour-skip" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Skip</button>
+        <button id="btn-tour-next" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold">Next</button>
       </div>
     </div>
   </div>
@@ -262,7 +257,6 @@
   <!-- Toast -->
   <div id="toast" class="hidden fixed bottom-4 right-4 px-6 py-3 rounded-xl shadow-lg z-50"></div>
 
-  <!-- App -->
   <script src="./app.js"></script>
 </body>
 </html>
