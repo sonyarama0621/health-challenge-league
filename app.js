@@ -31,7 +31,6 @@
   }
 
   function todayKeyLocal() {
-    // Local "day key" in YYYY-MM-DD
     const d = new Date();
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -39,13 +38,27 @@
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  function leagueTier(points) {
-    const p = Number(points || 0);
-    if (p >= 1900) return { name: "Champion", style: "border-2 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,.35)]" }; // "rainbow" later
-    if (p >= 1500) return { name: "MVP", style: "border-2 border-purple-400 shadow-[0_0_18px_rgba(168,85,247,.25)]" };
-    if (p >= 750)  return { name: "Pro", style: "border-2 border-yellow-400 shadow-[0_0_18px_rgba(250,204,21,.22)]" };
-    if (p >= 450)  return { name: "Elite", style: "border-2 border-slate-300 shadow-[0_0_18px_rgba(203,213,225,.18)]" };
-    return { name: "Rookie", style: "border-2 border-amber-700/80 shadow-[0_0_18px_rgba(180,83,9,.20)]" };
+  function setBtnDisabled(btnEl, disabled) {
+    if (!btnEl) return;
+    btnEl.disabled = !!disabled;
+    if (disabled) {
+      btnEl.classList.add("opacity-50", "cursor-not-allowed");
+    } else {
+      btnEl.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+  }
+
+  function toggleEye(inputId) {
+    const input = $(inputId);
+    if (!input) return;
+    input.type = input.type === "password" ? "text" : "password";
+  }
+
+  // simple hash for daily mind game
+  function hashStr(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h >>> 0;
   }
 
   // ---- UI: views ----
@@ -56,6 +69,8 @@
   const viewDash = $("view-dashboard");
   const viewLeague = $("view-league");
   const viewProfile = $("view-profile");
+  const viewFriends = $("view-friends");
+  const viewMindgame = $("view-mindgame");
 
   function showAuth(msg) {
     appShell.classList.add("hidden");
@@ -68,34 +83,30 @@
     appShell.classList.remove("hidden");
   }
 
-  function goDashboard() {
-    viewDash.classList.remove("hidden");
-    viewLeague.classList.add("hidden");
-    viewProfile.classList.add("hidden");
-  }
-
-  function goProfile() {
+  function hideAllViews() {
     viewDash.classList.add("hidden");
     viewLeague.classList.add("hidden");
-    viewProfile.classList.remove("hidden");
+    viewProfile.classList.add("hidden");
+    viewFriends.classList.add("hidden");
+    viewMindgame.classList.add("hidden");
   }
 
-  function goLeagueView() {
-    viewDash.classList.add("hidden");
-    viewLeague.classList.remove("hidden");
-    viewProfile.classList.add("hidden");
-  }
+  function goDashboard() { hideAllViews(); viewDash.classList.remove("hidden"); }
+  function goProfile() { hideAllViews(); viewProfile.classList.remove("hidden"); }
+  function goFriends() { hideAllViews(); viewFriends.classList.remove("hidden"); }
+  function goMindgame() { hideAllViews(); viewMindgame.classList.remove("hidden"); }
+  function goLeagueView() { hideAllViews(); viewLeague.classList.remove("hidden"); }
 
   // ---- State ----
   let currentUser = null;
   let currentProfile = null;
-  let selectedLeague = null; // { id, name, code, owner_id, is_private }
+  let selectedLeague = null;
 
   // ---- Ensure player profile row ----
   async function ensurePlayer(user, fallbackName) {
     const { data: existing, error: e1 } = await sb
       .from("players")
-      .select("user_id,email,name,avatar_url")
+      .select("user_id,email,name,avatar_url,friend_code")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -119,15 +130,14 @@
     return inserted;
   }
 
-  // ---- Stats / streak / achievements ----
+  // ---- Stats ----
   async function computeStreak(userId) {
-    // Pull recent logs, compute distinct days, count consecutive ending today
     const { data, error } = await sb
       .from("habit_logs")
       .select("log_date")
       .eq("user_id", userId)
       .order("log_date", { ascending: false })
-      .limit(120);
+      .limit(160);
 
     if (error) throw error;
 
@@ -147,18 +157,15 @@
     if (uniqueDays.length === 0) return 0;
 
     const today = todayKeyLocal();
-    // streak only counts if at least 1 habit logged today
     if (uniqueDays[0] !== today) return 0;
 
     let streak = 1;
     for (let i = 1; i < uniqueDays.length; i++) {
       const prev = uniqueDays[i - 1];
       const cur = uniqueDays[i];
-
       const prevDate = new Date(prev + "T00:00:00");
       const curDate = new Date(cur + "T00:00:00");
       const diffDays = Math.round((prevDate - curDate) / (1000 * 60 * 60 * 24));
-
       if (diffDays === 1) streak++;
       else break;
     }
@@ -175,26 +182,36 @@
     return count || 0;
   }
 
-  async function countTodayLogs(userId) {
-    const today = todayKeyLocal();
-    const { count, error } = await sb
+  async function totalPoints(userId) {
+    // habit logs points
+    const { data: h, error: e1 } = await sb
       .from("habit_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("log_date", today);
+      .select("points")
+      .eq("user_id", userId);
 
-    if (error) throw error;
-    return count || 0;
+    if (e1) throw e1;
+
+    // minigame points
+    const { data: m, error: e2 } = await sb
+      .from("minigame_logs")
+      .select("points")
+      .eq("user_id", userId);
+
+    // minigame table might not exist in older setups; handle gracefully
+    let mg = [];
+    if (!e2) mg = m || [];
+
+    const sum = (arr) => (arr || []).reduce((a, r) => a + Number(r.points || 0), 0);
+    return sum(h) + sum(mg);
   }
 
   async function loadAchievementList(userId) {
-    // show last ~20 earned
     const { data, error } = await sb
       .from("user_achievements")
       .select("earned_at, achievements(code,name,icon,description)")
       .eq("user_id", userId)
       .order("earned_at", { ascending: false })
-      .limit(25);
+      .limit(50);
 
     if (error) throw error;
 
@@ -221,32 +238,6 @@
     }
   }
 
-  async function refreshDashboard() {
-    if (!currentUser) return;
-
-    // streak + achievements + today count
-    const [streak, ach, today] = await Promise.all([
-      computeStreak(currentUser.id),
-      countAchievements(currentUser.id),
-      countTodayLogs(currentUser.id),
-    ]);
-
-    setText("stat-streak", streak);
-    setText("stat-ach", ach);
-    setText("stat-today", today);
-
-    setText("profile-streak", streak);
-    setText("profile-ach", ach);
-
-    await loadAchievementList(currentUser.id);
-
-    // disable buttons already logged today
-    await refreshHabitButtonStates();
-
-    // leagues list
-    await refreshLeaguesList();
-  }
-
   // ---- Habits ----
   const HABITS = [
     { key: "water", label: "Water", points: 5, btn: "btn-log-water" },
@@ -260,24 +251,10 @@
     { key: "no_coke", label: "No Coke", points: 5, btn: "btn-log-nocoke" },
   ];
 
-  function setBtnDisabled(btnEl, disabled) {
-    if (!btnEl) return;
-    btnEl.disabled = !!disabled;
-    if (disabled) {
-      btnEl.classList.add("opacity-50");
-      btnEl.classList.add("cursor-not-allowed");
-      btnEl.classList.remove("hover:brightness-110");
-    } else {
-      btnEl.classList.remove("opacity-50");
-      btnEl.classList.remove("cursor-not-allowed");
-    }
-  }
-
   async function refreshHabitButtonStates() {
     if (!currentUser) return;
 
     const today = todayKeyLocal();
-
     const { data, error } = await sb
       .from("habit_logs")
       .select("habit_key")
@@ -287,8 +264,6 @@
     if (error) throw error;
 
     const logged = new Set((data || []).map(r => r.habit_key));
-
-    // If any steps logged, lock both
     const stepsLogged = logged.has("steps_5k") || logged.has("steps_10k");
 
     for (const h of HABITS) {
@@ -303,7 +278,7 @@
 
     const today = todayKeyLocal();
 
-    // quick check (so we can show clean toast)
+    // check today existing
     const { data: existing, error: e1 } = await sb
       .from("habit_logs")
       .select("id, habit_key")
@@ -318,15 +293,11 @@
     }
 
     if ((existing || []).length > 0) {
-      toast(habitKey.startsWith("steps_")
-        ? "You already logged Steps today."
-        : `You already logged ${label} today.`
-      );
+      toast(habitKey.startsWith("steps_") ? "You already logged Steps today." : `You already logged ${label} today.`);
       await refreshHabitButtonStates();
       return;
     }
 
-    // Insert log (unique constraint in DB should also protect this)
     const { error: e2 } = await sb
       .from("habit_logs")
       .insert({
@@ -337,29 +308,21 @@
       });
 
     if (e2) {
-      // 409 conflict often means unique constraint hit
-      if (String(e2.message || "").toLowerCase().includes("duplicate") || e2.code === "23505") {
-        toast(`You already logged ${label} today.`);
-      } else {
-        toast("Error logging habit. Check console.");
-      }
+      toast("Error logging habit. Check console.");
       console.error(e2);
       await refreshHabitButtonStates();
       return;
     }
 
     toast(`+${points} points — logged ${label}!`);
-    await refreshDashboard();
+    await refreshAll();
   }
 
   function wireHabitButtons() {
     for (const h of HABITS) {
       const btn = $(h.btn);
       if (!btn) continue;
-
-      btn.addEventListener("click", async () => {
-        await logHabit(h.key, h.label, h.points);
-      });
+      btn.addEventListener("click", async () => logHabit(h.key, h.label, h.points));
     }
   }
 
@@ -379,30 +342,22 @@
   async function refreshLeaguesList() {
     if (!currentUser) return;
 
-    // We expect league_members has FK to leagues
     const { data, error } = await sb
       .from("league_members")
       .select("league_id, joined_at, leagues(id,name,code,owner_id,is_private)")
       .eq("user_id", currentUser.id)
       .order("joined_at", { ascending: false });
 
+    const list = $("leagues-list");
+    list.innerHTML = "";
+
     if (error) {
       console.error(error);
       $("leagues-empty").classList.remove("hidden");
-      $("leagues-list").innerHTML = "";
       return;
     }
 
-    const leagues = (data || [])
-      .map(r => ({
-        league_id: r.league_id,
-        joined_at: r.joined_at,
-        league: r.leagues
-      }))
-      .filter(x => x.league);
-
-    const list = $("leagues-list");
-    list.innerHTML = "";
+    const leagues = (data || []).map(r => r.leagues).filter(Boolean);
 
     if (leagues.length === 0) {
       $("leagues-empty").classList.remove("hidden");
@@ -410,14 +365,14 @@
     }
     $("leagues-empty").classList.add("hidden");
 
-    for (const item of leagues) {
+    for (const lg of leagues) {
       const card = document.createElement("div");
       card.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex items-center justify-between gap-4";
 
       card.innerHTML = `
-        <div>
-          <div class="font-extrabold text-lg">${item.league.name}</div>
-          <div class="text-slate-300 text-xs">Invite code: <span class="font-mono tracking-wider">${item.league.code || "—"}</span></div>
+        <div class="min-w-0">
+          <div class="font-extrabold text-lg truncate">${lg.name}</div>
+          <div class="text-slate-300 text-xs">Invite code: <span class="font-mono tracking-wider">${lg.code || "—"}</span></div>
         </div>
         <div class="flex items-center gap-2">
           <button class="btn-open px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Open</button>
@@ -425,7 +380,7 @@
       `;
 
       card.querySelector(".btn-open").addEventListener("click", async () => {
-        selectedLeague = item.league;
+        selectedLeague = lg;
         await loadLeaguePage(selectedLeague);
       });
 
@@ -440,13 +395,9 @@
     setText("league-sub", league.code ? `Invite code: ${league.code}` : "");
     goLeagueView();
 
-    // show delete button if owner
     const delBtn = $("btn-league-delete");
-    if (league.owner_id && currentUser && league.owner_id === currentUser.id) {
-      delBtn.classList.remove("hidden");
-    } else {
-      delBtn.classList.add("hidden");
-    }
+    if (league.owner_id && currentUser && league.owner_id === currentUser.id) delBtn.classList.remove("hidden");
+    else delBtn.classList.add("hidden");
 
     await refreshLeagueBoard();
   }
@@ -457,10 +408,6 @@
     const board = $("league-board");
     board.innerHTML = `<div class="text-slate-300 text-sm">Loading…</div>`;
 
-    // Preferred: view `league_leaderboard` with columns:
-    // league_id, user_id, name, avatar_url, points
-    let rows = null;
-
     const { data, error } = await sb
       .from("league_leaderboard")
       .select("league_id,user_id,name,avatar_url,points")
@@ -468,26 +415,22 @@
       .order("points", { ascending: false })
       .limit(50);
 
-    if (!error) rows = data;
-
     if (error) {
-      console.warn("league_leaderboard not available or blocked by RLS:", error);
-      board.innerHTML = `<div class="text-slate-300 text-sm">Leaderboard view not available. (Check Supabase view/RLS.)</div>`;
+      console.warn(error);
+      board.innerHTML = `<div class="text-slate-300 text-sm">Leaderboard not available (check view/RLS).</div>`;
       return;
     }
 
     board.innerHTML = "";
-
-    if (!rows || rows.length === 0) {
+    if (!data || data.length === 0) {
       board.innerHTML = `<div class="text-slate-300 text-sm">No members yet.</div>`;
       return;
     }
 
     let rank = 1;
-    for (const r of rows) {
-      const tier = leagueTier(r.points);
+    for (const r of data) {
       const card = document.createElement("div");
-      card.className = `rounded-2xl p-4 bg-slate-900/40 border border-slate-700 flex items-center justify-between gap-4 ${tier.style}`;
+      card.className = `rounded-2xl p-4 bg-slate-900/40 border border-slate-700 flex items-center justify-between gap-4`;
 
       const avatar = r.avatar_url
         ? `<img src="${r.avatar_url}" class="w-12 h-12 rounded-xl object-cover border border-slate-700 bg-slate-800" />`
@@ -499,9 +442,6 @@
           ${avatar}
           <div class="min-w-0">
             <div class="font-extrabold text-lg truncate">${r.name || "Player"}</div>
-            <div class="text-slate-300 text-sm flex items-center gap-2">
-              <span>${tier.name}</span>
-            </div>
           </div>
         </div>
 
@@ -510,12 +450,6 @@
           <div class="text-slate-400 text-xs">points</div>
         </div>
       `;
-
-      // click to view profile-lite (future: full profile page)
-      card.addEventListener("click", () => {
-        toast(`${r.name || "Player"} — ${Number(r.points || 0)} pts in this league`);
-      });
-
       board.appendChild(card);
       rank++;
     }
@@ -529,7 +463,6 @@
       return;
     }
 
-    // RPC must exist: create_league(league_name text, is_private boolean)
     const { data, error } = await sb.rpc("create_league", {
       league_name: name,
       is_private: true
@@ -541,12 +474,8 @@
       return;
     }
 
-    // Expect return { league_id, code } or similar; handle generically
     const code = data?.code || data?.invite_code || data?.join_code || "";
-    $("create-league-msg").textContent = code
-      ? `League created! Invite code: ${code}`
-      : `League created!`;
-
+    $("create-league-msg").textContent = code ? `League created! Invite code: ${code}` : `League created!`;
     toast("League created!");
     await refreshLeaguesList();
   }
@@ -559,8 +488,7 @@
       return;
     }
 
-    // RPC must exist: join_league(join_code text)
-    const { data, error } = await sb.rpc("join_league", { join_code: code });
+    const { error } = await sb.rpc("join_league", { join_code: code });
 
     if (error) {
       console.error(error);
@@ -576,7 +504,6 @@
     if (!selectedLeague) return;
     if (!confirm(`Delete "${selectedLeague.name}"? This cannot be undone.`)) return;
 
-    // RPC must exist: delete_league(league_id uuid)
     const { error } = await sb.rpc("delete_league", { league_id: selectedLeague.id });
 
     if (error) {
@@ -591,19 +518,17 @@
     await refreshLeaguesList();
   }
 
-  // ---- Avatar upload (Supabase Storage bucket: avatars) ----
+  // ---- Avatar upload ----
   async function uploadAvatar(file) {
     if (!currentUser) return;
 
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${currentUser.id}/avatar.${ext}`;
 
-    // We store as PUBLIC bucket (so we can show images easily)
     const { error: upErr } = await sb.storage.from("avatars").upload(path, file, {
       upsert: true,
       contentType: file.type
     });
-
     if (upErr) throw upErr;
 
     const { data: pub } = sb.storage.from("avatars").getPublicUrl(path);
@@ -615,11 +540,334 @@
       .eq("user_id", currentUser.id);
 
     if (e2) throw e2;
-
     return url;
   }
 
+  // ---- Friends + Notifications ----
+  const notifModal = $("notif-modal");
+  function openNotifModal() { notifModal.classList.remove("hidden"); }
+  function closeNotifModal() { notifModal.classList.add("hidden"); }
+
+  async function refreshNotifCount() {
+    const dot = $("notif-dot");
+    if (!currentUser) { dot.classList.add("hidden"); return; }
+
+    const { data, error } = await sb.rpc("notifications_count");
+    if (error) { console.warn(error); dot.classList.add("hidden"); return; }
+
+    if ((data || 0) > 0) dot.classList.remove("hidden");
+    else dot.classList.add("hidden");
+  }
+
+  async function loadNotifications() {
+    const list = $("notif-list");
+    const empty = $("notif-empty");
+    list.innerHTML = "";
+    empty.classList.add("hidden");
+
+    const { data, error } = await sb.rpc("list_pending_friend_requests");
+    if (error) {
+      console.error(error);
+      empty.classList.remove("hidden");
+      empty.textContent = "Could not load notifications (check SQL/functions).";
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      empty.classList.remove("hidden");
+      return;
+    }
+
+    for (const r of data) {
+      const row = document.createElement("div");
+      row.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex items-center justify-between gap-4";
+
+      const avatar = r.requester_avatar_url
+        ? `<img src="${r.requester_avatar_url}" class="w-10 h-10 rounded-xl object-cover border border-slate-700 bg-slate-800" />`
+        : `<div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center">👤</div>`;
+
+      row.innerHTML = `
+        <div class="flex items-center gap-3 min-w-0">
+          ${avatar}
+          <div class="min-w-0">
+            <div class="font-extrabold truncate">${r.requester_name || "Player"}</div>
+            <div class="text-slate-300 text-xs">sent you a friend request</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-accept px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold">Accept</button>
+          <button class="btn-decline px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Decline</button>
+        </div>
+      `;
+
+      row.querySelector(".btn-accept").addEventListener("click", async () => {
+        const { data: out, error: e } = await sb.rpc("accept_friend_request", { p_request_id: r.request_id });
+        if (e) { toast(e.message); console.error(e); return; }
+        toast(out?.message || "Friend added!");
+        await refreshFriends();
+        await loadNotifications();
+        await refreshNotifCount();
+      });
+
+      row.querySelector(".btn-decline").addEventListener("click", async () => {
+        const { data: out, error: e } = await sb.rpc("decline_friend_request", { p_request_id: r.request_id });
+        if (e) { toast(e.message); console.error(e); return; }
+        toast(out?.message || "Declined.");
+        await loadNotifications();
+        await refreshNotifCount();
+      });
+
+      list.appendChild(row);
+    }
+  }
+
+  async function refreshFriends() {
+    const box = $("friends-list");
+    box.innerHTML = "";
+
+    const { data, error } = await sb.rpc("list_friends");
+    if (error) {
+      console.error(error);
+      box.innerHTML = `<div class="text-slate-300 text-sm">Could not load friends (check SQL/functions).</div>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      box.innerHTML = `<div class="text-slate-300 text-sm">No friends yet.</div>`;
+      return;
+    }
+
+    for (const f of data) {
+      const row = document.createElement("div");
+      row.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-3 flex items-center gap-3";
+
+      const avatar = f.friend_avatar_url
+        ? `<img src="${f.friend_avatar_url}" class="w-10 h-10 rounded-xl object-cover border border-slate-700 bg-slate-800" />`
+        : `<div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center">👤</div>`;
+
+      row.innerHTML = `
+        ${avatar}
+        <div class="font-extrabold">${f.friend_name || "Friend"}</div>
+      `;
+      box.appendChild(row);
+    }
+  }
+
+  async function sendFriendRequest() {
+    $("friend-msg").textContent = "";
+    const code = $("friend-code-input").value.trim().toUpperCase();
+    if (!code) { $("friend-msg").textContent = "Enter a Friend Code."; return; }
+
+    const { data, error } = await sb.rpc("request_friend", { p_friend_code: code });
+    if (error) { console.error(error); $("friend-msg").textContent = error.message; return; }
+
+    $("friend-msg").textContent = data?.message || "Request sent.";
+    toast(data?.message || "Friend request sent!");
+    $("friend-code-input").value = "";
+    await refreshNotifCount();
+  }
+
+  // ---- Mind Game ----
+  async function mindgameState() {
+    const today = todayKeyLocal();
+    const key = `mg_guess10_${today}_${currentUser?.id || ""}`;
+    const state = JSON.parse(localStorage.getItem(key) || "null") || { tries: 0, done: false };
+    return { key, today, state };
+  }
+
+  async function loadMindgameUI() {
+    if (!currentUser) return;
+
+    const { key, today, state } = await mindgameState();
+    const msg = $("mg-msg");
+    const doneBox = $("mg-done");
+    const left = $("mg-left");
+    const btn = $("btn-mg-try");
+
+    // check if already logged in DB (prevents clearing localStorage to replay)
+    const { data, error } = await sb
+      .from("minigame_logs")
+      .select("id, won, points")
+      .eq("user_id", currentUser.id)
+      .eq("game_key", "guess10")
+      .eq("played_on", today)
+      .maybeSingle();
+
+    const played = !error && !!data;
+
+    if (played || state.done) {
+      btn.disabled = true;
+      setBtnDisabled(btn, true);
+      doneBox.classList.remove("hidden");
+      doneBox.textContent = played
+        ? (data.won ? `✅ You already won today (+${data.points} points).` : `✅ You already played today. Try again tomorrow!`)
+        : `✅ You already played today. Try again tomorrow!`;
+      msg.textContent = "";
+      left.textContent = "0";
+      return;
+    }
+
+    btn.disabled = false;
+    setBtnDisabled(btn, false);
+    doneBox.classList.add("hidden");
+    left.textContent = String(3 - state.tries);
+    msg.textContent = "";
+  }
+
+  async function tryMindgame() {
+    if (!currentUser) return;
+
+    const guess = Number($("mg-guess").value);
+    if (!guess || guess < 1 || guess > 10) {
+      $("mg-msg").textContent = "Enter a number between 1 and 10.";
+      return;
+    }
+
+    const { key, today, state } = await mindgameState();
+    const secret = (hashStr("guess10:" + today) % 10) + 1;
+
+    state.tries = (state.tries || 0) + 1;
+
+    const left = 3 - state.tries;
+    $("mg-left").textContent = String(Math.max(0, left));
+
+    if (guess === secret) {
+      state.done = true;
+      localStorage.setItem(key, JSON.stringify(state));
+
+      const { error } = await sb
+        .from("minigame_logs")
+        .insert({
+          user_id: currentUser.id,
+          game_key: "guess10",
+          played_on: today,
+          won: true,
+          points: 10
+        });
+
+      if (error) console.error(error);
+
+      toast("+10 points — Mind game win!");
+      $("mg-msg").textContent = "✅ Correct!";
+      await refreshAll();
+      await loadMindgameUI();
+      return;
+    }
+
+    if (state.tries >= 3) {
+      state.done = true;
+      localStorage.setItem(key, JSON.stringify(state));
+
+      const { error } = await sb
+        .from("minigame_logs")
+        .insert({
+          user_id: currentUser.id,
+          game_key: "guess10",
+          played_on: today,
+          won: false,
+          points: 0
+        });
+
+      if (error) console.error(error);
+
+      $("mg-msg").textContent = `❌ Out of tries. The answer was ${secret}.`;
+      await loadMindgameUI();
+      return;
+    }
+
+    $("mg-msg").textContent = guess < secret ? "Too low. Try again." : "Too high. Try again.";
+    localStorage.setItem(key, JSON.stringify(state));
+  }
+
+  // ---- Password reset ----
+  function showResetBox(show) {
+    const box = $("reset-box");
+    if (!box) return;
+    if (show) box.classList.remove("hidden");
+    else box.classList.add("hidden");
+  }
+
+  async function sendResetEmail() {
+    $("reset-msg").textContent = "";
+    const email = $("reset-email").value.trim().toLowerCase();
+    if (!email) { $("reset-msg").textContent = "Enter your email."; return; }
+
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+
+    if (error) {
+      console.error(error);
+      $("reset-msg").textContent = error.message;
+      return;
+    }
+
+    $("reset-msg").textContent = "✅ Reset link sent! Check your email.";
+  }
+
+  async function handleRecoveryLinkIfPresent() {
+    // Supabase recovery uses ?code=... often
+    const code = new URLSearchParams(window.location.search).get("code");
+    if (!code) return;
+
+    showResetBox(true);
+    $("newpass-box").classList.remove("hidden");
+    $("reset-msg").textContent = "✅ Recovery link detected. Set your new password below.";
+
+    try {
+      const { error } = await sb.auth.exchangeCodeForSession(code);
+      if (error) console.warn(error);
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  async function setNewPassword() {
+    $("reset-msg").textContent = "";
+    const p1 = $("new-pass").value;
+    const p2 = $("new-pass2").value;
+    if (!p1 || p1.length < 6) { $("reset-msg").textContent = "Password must be at least 6 characters."; return; }
+    if (p1 !== p2) { $("reset-msg").textContent = "Passwords do not match."; return; }
+
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if (error) {
+      console.error(error);
+      $("reset-msg").textContent = error.message;
+      return;
+    }
+
+    $("reset-msg").textContent = "✅ Password updated! You can log in now.";
+    toast("Password updated!");
+    // Clean URL
+    history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  // ---- Refresh everything ----
+  async function refreshAll() {
+    if (!currentUser) return;
+
+    const [streak, ach, pts] = await Promise.all([
+      computeStreak(currentUser.id),
+      countAchievements(currentUser.id),
+      totalPoints(currentUser.id)
+    ]);
+
+    setText("hdr-streak", streak);
+    setText("hdr-ach", ach);
+    setText("hdr-points", pts);
+
+    await loadAchievementList(currentUser.id);
+    await refreshHabitButtonStates();
+    await refreshLeaguesList();
+    await refreshFriends();
+    await refreshNotifCount();
+    await loadMindgameUI();
+  }
+
   // ---- Auth wiring ----
+  $("su-pass-eye")?.addEventListener("click", () => toggleEye("su-pass"));
+  $("li-pass-eye")?.addEventListener("click", () => toggleEye("li-pass"));
+  $("new-pass-eye")?.addEventListener("click", () => toggleEye("new-pass"));
+
   $("btn-signup").addEventListener("click", async () => {
     authMsg.textContent = "";
     const email = $("su-email").value.trim().toLowerCase();
@@ -632,7 +880,6 @@
     }
 
     const redirectTo = window.location.origin + window.location.pathname;
-
     const { error } = await sb.auth.signUp({
       email,
       password,
@@ -647,7 +894,7 @@
       return;
     }
 
-    authMsg.textContent = "Signup successful! Check your email and click the verification link, then come back and log in.";
+    authMsg.textContent = "Signup successful! Check your email and click the verification link, then log in.";
   });
 
   $("btn-login").addEventListener("click", async () => {
@@ -657,7 +904,8 @@
 
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) {
-      authMsg.textContent = `Login error: ${error.message}`;
+      // Friendlier error for wrong email/pass
+      authMsg.textContent = "Incorrect email or password. Please try again.";
       return;
     }
 
@@ -673,20 +921,44 @@
     showAuth("Logged out.");
   });
 
-  // ---- Navigation ----
-  $("nav-dashboard").addEventListener("click", () => goDashboard());
-  $("nav-profile").addEventListener("click", () => goProfile());
-  $("btn-league-back").addEventListener("click", () => goDashboard());
-  $("btn-league-refresh").addEventListener("click", async () => refreshLeagueBoard());
-  $("btn-league-delete").addEventListener("click", async () => deleteLeague());
+  // Forgot password UI
+  $("btn-forgot")?.addEventListener("click", () => {
+    showResetBox(true);
+    $("reset-msg").textContent = "";
+  });
+  $("btn-send-reset")?.addEventListener("click", sendResetEmail);
+  $("btn-set-newpass")?.addEventListener("click", setNewPassword);
 
-  // ---- League modal buttons ----
+  // ---- Navigation ----
+  $("nav-dashboard").addEventListener("click", goDashboard);
+  $("nav-profile").addEventListener("click", goProfile);
+  $("nav-friends").addEventListener("click", async () => { goFriends(); await refreshFriends(); });
+  $("nav-mindgame").addEventListener("click", async () => { goMindgame(); await loadMindgameUI(); });
+
+  $("btn-league-back").addEventListener("click", goDashboard);
+  $("btn-league-refresh").addEventListener("click", refreshLeagueBoard);
+  $("btn-league-delete").addEventListener("click", deleteLeague);
+
+  // League modal
   $("btn-open-league-modal").addEventListener("click", openLeagueModal);
   $("btn-close-league-modal").addEventListener("click", closeLeagueModal);
-  $("btn-create-league").addEventListener("click", async () => createLeague());
-  $("btn-join-league").addEventListener("click", async () => joinLeague());
+  $("btn-create-league").addEventListener("click", createLeague);
+  $("btn-join-league").addEventListener("click", joinLeague);
 
-  // ---- Profile avatar input ----
+  // Notifications modal
+  $("btn-notifs").addEventListener("click", async () => {
+    openNotifModal();
+    await loadNotifications();
+  });
+  $("btn-close-notif").addEventListener("click", closeNotifModal);
+
+  // Friends
+  $("btn-send-friend").addEventListener("click", sendFriendRequest);
+
+  // Mind game
+  $("btn-mg-try").addEventListener("click", tryMindgame);
+
+  // Avatar
   $("avatar-file").addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -696,7 +968,6 @@
       const url = await uploadAvatar(file);
       $("avatar-img").src = url;
       toast("Profile photo updated!");
-      await refreshLeaguesList();
     } catch (err) {
       console.error(err);
       toast(`Upload error: ${err.message || err}`);
@@ -710,7 +981,6 @@
     showApp();
     goDashboard();
 
-    // load profile
     try {
       currentProfile = await ensurePlayer(currentUser, currentUser.user_metadata?.name);
     } catch (e) {
@@ -719,20 +989,26 @@
       return;
     }
 
-    setText("whoami", `${currentProfile.name} (${currentProfile.email})`);
+    // Dashboard: show NAME only (no email)
+    setText("whoami", `${currentProfile.name}`);
+
+    // Profile: show email
     setText("profile-name", currentProfile.name);
     setText("profile-email", currentProfile.email);
+    setText("friend-code", currentProfile.friend_code || "—");
 
     const avatarUrl = currentProfile.avatar_url || "";
     $("avatar-img").src = avatarUrl || "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='100%25' height='100%25' fill='%231f2937'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='56'>👤</text></svg>";
 
-    await refreshDashboard();
+    await refreshAll();
   }
 
   // ---- Init ----
   wireHabitButtons();
 
   (async function init() {
+    await handleRecoveryLinkIfPresent();
+
     const { data, error } = await sb.auth.getSession();
     if (error) {
       console.error(error);
