@@ -1,830 +1,1054 @@
-// =====================================================
-// Health Challenge League - app.js
-// =====================================================
-
-// Your Supabase project URL + anon key
-const SUPABASE_URL = "https://onndovdpdaccsavbkykm.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ubmRvdmRwZGFjY3NhdmJreWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjI2NTksImV4cCI6MjA4ODEzODY1OX0.7dnpa5q34PbW34tF1U83NRJGWRyR70twlDNxgXMOoeE";
-
-// Prevent "Identifier 'supabase' has already been declared"
 (() => {
+  // =========================
+  // Supabase Config (yours)
+  // =========================
+  const SUPABASE_URL = "https://onndovdpdaccsavbkykm.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ubmRvdmRwZGFjY3NhdmJreWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjI2NTksImV4cCI6MjA4ODEzODY1OX0.7dnpa5q34PbW34tF1U83NRJGWRyR70twlDNxgXMOoeE";
+
   if (!window.supabase) {
-    throw new Error("Supabase library not loaded. Check index.html script tags.");
+    throw new Error("Supabase library not loaded");
   }
-})();
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// -----------------------------------------------------
-// Helpers
-// -----------------------------------------------------
-const $ = (id) => document.getElementById(id);
+  // =========================
+  // Helpers
+  // =========================
+  const $ = (id) => document.getElementById(id);
 
-function todayKeyLocal() {
-  // Local day key YYYY-MM-DD
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function toast(msg, kind = "info") {
-  const box = $("toast");
-  const inner = $("toast-inner");
-  inner.textContent = msg;
-
-  inner.className =
-    "bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 shadow-xl";
-
-  if (kind === "error") {
+  function toast(msg, ok = true) {
+    const t = $("toast");
+    const inner = $("toast-inner");
     inner.className =
-      "bg-rose-950 border border-rose-700 rounded-2xl px-4 py-3 shadow-xl";
+      "bg-slate-900 border rounded-2xl px-4 py-3 shadow-xl " +
+      (ok ? "border-emerald-500/40" : "border-red-500/40");
+    inner.textContent = msg;
+    t.classList.remove("hidden");
+    setTimeout(() => t.classList.add("hidden"), 3200);
   }
-  if (kind === "success") {
-    inner.className =
-      "bg-emerald-950 border border-emerald-700 rounded-2xl px-4 py-3 shadow-xl";
+
+  function setAuthMsg(msg) {
+    $("auth-msg").textContent = msg || "";
+  }
+  function setModeMsg(msg) {
+    $("mode-msg").textContent = msg || "";
+  }
+  function setLeagueMsg(msg) {
+    const el = $("league-msg");
+    if (el) el.textContent = msg || "";
   }
 
-  box.classList.remove("hidden");
-  setTimeout(() => box.classList.add("hidden"), 2600);
-}
+  function showAuth() {
+    $("auth-box").classList.remove("hidden");
+    $("app-shell").classList.add("hidden");
+  }
+  function showApp() {
+    $("auth-box").classList.add("hidden");
+    $("app-shell").classList.remove("hidden");
+  }
 
-function setAuthMsg(t) {
-  $("auth-msg").textContent = t || "";
-}
-function setModeMsg(t) {
-  $("mode-msg").textContent = t || "";
-}
-function setLeagueMsg(t) {
-  $("league-msg").textContent = t || "";
-}
+  function showModeModal(on) {
+    $("mode-modal").classList.toggle("hidden", !on);
+  }
+  function showPlayerModal(on) {
+    $("player-modal").classList.toggle("hidden", !on);
+  }
 
-function leagueTier(points) {
-  if (points >= 1900) return { name: "Champion", color: "rainbow" };
-  if (points >= 1500) return { name: "MVP", color: "purple" };
-  if (points >= 750) return { name: "Pro", color: "gold" };
-  if (points >= 450) return { name: "Elite", color: "silver" };
-  return { name: "Rookie", color: "bronze" };
-}
+  function todayISODate() {
+    // local date (YYYY-MM-DD)
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
 
-function tierBorderClass(color) {
-  // Tailwind-friendly border colors
-  if (color === "bronze") return "border-amber-500";
-  if (color === "silver") return "border-slate-300";
-  if (color === "gold") return "border-yellow-400";
-  if (color === "purple") return "border-fuchsia-500";
-  if (color === "rainbow") return "border-pink-400";
-  return "border-slate-700";
-}
+  function startEndOfTodayUTC() {
+    // We query via created_at range to avoid relying on day_key/checkin_date columns.
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+    return { start: start.toISOString(), end: end.toISOString() };
+  }
 
-function disableButton(btn, reasonText) {
-  btn.disabled = true;
-  btn.classList.add("opacity-40", "cursor-not-allowed");
-  btn.dataset.lockedReason = reasonText || "You already logged that today.";
-}
-
-function enableButton(btn) {
-  btn.disabled = false;
-  btn.classList.remove("opacity-40", "cursor-not-allowed");
-  delete btn.dataset.lockedReason;
-}
-
-// -----------------------------------------------------
-// UI state
-// -----------------------------------------------------
-let currentUser = null;
-let currentProfile = null;
-let activeLeagueId = null;
-
-// Habit config (keys must match your DB habit_keys logic)
-const HABITS = [
-  { key: "water", btn: "btn-log-water", points: 5, label: "Water" },
-  { key: "protein", btn: "btn-log-protein", points: 8, label: "Protein Goal" },
-  { key: "steps_5k", btn: "btn-log-steps-5k", points: 6, label: "Steps (5K–9.9K)", group: "steps" },
-  { key: "steps_10k", btn: "btn-log-steps-10k", points: 10, label: "Steps (10K+)", group: "steps" },
-  { key: "workout", btn: "btn-log-workout", points: 12, label: "Workout" },
-  { key: "reading", btn: "btn-log-reading", points: 9, label: "Reading" },
-  { key: "sleep", btn: "btn-log-sleep", points: 11, label: "Sleep" },
-  { key: "no_sugar", btn: "btn-log-nosugar", points: 7, label: "No Added Sugar" },
-  { key: "no_coke", btn: "btn-log-nocoke", points: 5, label: "No Coke" },
-];
-
-// -----------------------------------------------------
-// Auth + Profile
-// -----------------------------------------------------
-async function ensurePlayerProfile(user, displayName) {
-  const { data: existing, error: e1 } = await sb
-    .from("players")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (e1) throw e1;
-  if (existing) return existing;
-
-  const payload = {
-    user_id: user.id,
-    email: user.email,
-    name: displayName || "Player",
+  // =========================
+  // Habits + Points
+  // =========================
+  const HABITS = {
+    water: { points: 5, name: "Water" },
+    protein: { points: 8, name: "Protein" },
+    steps_5k: { points: 6, name: "Steps 5K–9.9K", group: "steps" },
+    steps_10k: { points: 10, name: "Steps 10K+", group: "steps" },
+    workout: { points: 12, name: "Workout" },
+    reading: { points: 9, name: "Reading" },
+    sleep: { points: 11, name: "Sleep" },
+    no_sugar: { points: 7, name: "No Added Sugar" },
+    no_coke: { points: 5, name: "No Coke" },
   };
 
-  const { data: inserted, error: e2 } = await sb
-    .from("players")
-    .insert(payload)
-    .select()
-    .single();
+  const BTN_TO_HABIT = {
+    "btn-log-water": "water",
+    "btn-log-protein": "protein",
+    "btn-log-steps-5k": "steps_5k",
+    "btn-log-steps-10k": "steps_10k",
+    "btn-log-workout": "workout",
+    "btn-log-reading": "reading",
+    "btn-log-sleep": "sleep",
+    "btn-log-nosugar": "no_sugar",
+    "btn-log-nocoke": "no_coke",
+  };
 
-  if (e2) throw e2;
-  return inserted;
-}
-
-async function fetchAchievementCount(userId) {
-  const { count, error } = await sb
-    .from("user_achievements")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-
-  if (error) return 0;
-  return count || 0;
-}
-
-async function refreshProfileUI() {
-  if (!currentProfile) return;
-
-  // Points / streak may be computed via DB columns you added earlier
-  const { data: p, error } = await sb
-    .from("players")
-    .select("*")
-    .eq("user_id", currentUser.id)
-    .single();
-
-  if (!error && p) currentProfile = p;
-
-  const points = Number(currentProfile.points || 0);
-  const streak = Number(currentProfile.streak || 0);
-
-  $("whoami").textContent = `${currentProfile.name} (${currentProfile.email})`;
-  $("points-num").textContent = points;
-  $("streak-num").textContent = streak;
-
-  const achCount = await fetchAchievementCount(currentUser.id);
-  $("ach-num").textContent = achCount;
-
-  const tier = leagueTier(points);
-  $("tier-name").textContent = tier.name;
-
-  // Profile card border by tier
-  const card = $("profile-card");
-  card.classList.remove(
-    "border-amber-500",
-    "border-slate-300",
-    "border-yellow-400",
-    "border-fuchsia-500",
-    "border-pink-400"
-  );
-  card.classList.add(tierBorderClass(tier.color));
-
-  // avatar
-  $("avatar-img").src = currentProfile.avatar_url || "";
-  if (!currentProfile.avatar_url) {
-    // tiny fallback
-    $("avatar-img").src =
-      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='100%25' height='100%25' fill='%23111827'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='%239CA3AF' font-size='20'%3EAvatar%3C/text%3E%3C/svg%3E";
+  // =========================
+  // Tier Colors
+  // =========================
+  function getTier(points) {
+    const p = Number(points || 0);
+    if (p >= 1900) return { name: "Champion", border: "conic-gradient(from 180deg, #f87171, #fb923c, #facc15, #4ade80, #60a5fa, #a78bfa, #f87171)" };
+    if (p >= 1500) return { name: "MVP", border: "#a78bfa" };
+    if (p >= 750) return { name: "Pro", border: "#fbbf24" };
+    if (p >= 450) return { name: "Elite", border: "#94a3b8" };
+    return { name: "Rookie", border: "#b45309" }; // bronze-ish
   }
-}
 
-function showApp() {
-  $("auth-box").classList.add("hidden");
-  $("app-shell").classList.remove("hidden");
-}
+  function applyTierOutline(cardEl, points) {
+    const tier = getTier(points);
+    if (!cardEl) return;
 
-function showAuth() {
-  $("app-shell").classList.add("hidden");
-  $("auth-box").classList.remove("hidden");
-}
-
-async function initAfterLogin() {
-  showApp();
-  await refreshProfileUI();
-  await loadMyLeagues();
-  await refreshTodayLocks();
-  // mode modal is available from button
-}
-
-// -----------------------------------------------------
-// Daily locks (disable buttons already logged today)
-// -----------------------------------------------------
-async function getTodayLoggedKeys() {
-  const dayKey = todayKeyLocal();
-
-  // Prefer habit_logs table (per your schema)
-  const { data, error } = await sb
-    .from("habit_logs")
-    .select("habit_key")
-    .eq("user_id", currentUser.id)
-    .eq("day_key", dayKey);
-
-  if (error) return [];
-  return (data || []).map((r) => r.habit_key);
-}
-
-async function refreshTodayLocks() {
-  const keys = await getTodayLoggedKeys();
-
-  // reset all
-  HABITS.forEach((h) => enableButton($(h.btn)));
-
-  // disable logged
-  for (const h of HABITS) {
-    if (keys.includes(h.key)) {
-      disableButton($(h.btn), `You already logged ${h.label} today.`);
+    // fancy gradient for champion
+    if (tier.name === "Champion") {
+      cardEl.style.border = "2px solid transparent";
+      cardEl.style.backgroundImage =
+        `linear-gradient(#0f172a, #0f172a), ${tier.border}`;
+      cardEl.style.backgroundOrigin = "border-box";
+      cardEl.style.backgroundClip = "padding-box, border-box";
+    } else {
+      cardEl.style.backgroundImage = "";
+      cardEl.style.border = `2px solid ${tier.border}`;
     }
   }
 
-  // steps group: if either steps logged, lock both
-  const stepsLogged =
-    keys.includes("steps_5k") || keys.includes("steps_10k");
-  if (stepsLogged) {
-    disableButton($("btn-log-steps-5k"), "You already logged Steps today.");
-    disableButton($("btn-log-steps-10k"), "You already logged Steps today.");
+  // =========================
+  // App state
+  // =========================
+  let me = null;                 // auth user
+  let myProfile = null;          // players row
+  let myLeagues = [];            // list of leagues user is in
+  let activeLeagueId = null;     // selected league
+  let todayLoggedSet = new Set();// habit keys logged today
+
+  // =========================
+  // Profile / players
+  // =========================
+  async function ensureProfile(user, fallbackName) {
+    const { data: existing, error: selErr } = await sb
+      .from("players")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (selErr) throw selErr;
+    if (existing) return existing;
+
+    const toInsert = {
+      user_id: user.id,
+      email: user.email,
+      name: fallbackName || "Player",
+      streak: 0,
+      total_points: 0,
+      last_tracked: null, // keep compatible with your older streak logic
+      avatar_url: null,
+    };
+
+    const { data: inserted, error: insErr } = await sb
+      .from("players")
+      .insert(toInsert)
+      .select()
+      .single();
+
+    if (insErr) throw insErr;
+    return inserted;
   }
-}
 
-// -----------------------------------------------------
-// Habit logging
-// -----------------------------------------------------
-async function logHabit(habitKey, points, label) {
-  if (!currentUser) return;
+  async function refreshProfileUI() {
+    // refresh myProfile from DB (so UI is always current)
+    const { data, error } = await sb
+      .from("players")
+      .select("*")
+      .eq("user_id", me.id)
+      .single();
 
-  const dayKey = todayKeyLocal();
+    if (error) throw error;
+    myProfile = data;
 
-  // If button already locked, show toast
-  const habit = HABITS.find((h) => h.key === habitKey);
-  if (habit) {
-    const btn = $(habit.btn);
-    if (btn.disabled) {
-      toast(btn.dataset.lockedReason || `You already logged ${label} today.`);
+    $("whoami").textContent = `${myProfile.name} (${myProfile.email})`;
+
+    // avatar
+    $("avatar-img").src = myProfile.avatar_url || "https://placehold.co/200x200/png?text=%F0%9F%91%A4";
+
+    $("streak-num").textContent = String(myProfile.streak || 0);
+    $("points-num").textContent = String(myProfile.total_points || 0);
+
+    // achievements count (global)
+    try {
+      const { count } = await sb
+        .from("player_achievements")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", me.id);
+      $("ach-num").textContent = String(count || 0);
+    } catch (e) {
+      // table may not exist yet; keep UI stable
+      $("ach-num").textContent = "0";
+    }
+
+    // active league badge
+    if (activeLeagueId) {
+      const lg = myLeagues.find((x) => x.id === activeLeagueId);
+      $("active-league-badge").textContent = lg ? `Selected league: ${lg.name}` : "Selected league: —";
+    } else {
+      $("active-league-badge").textContent = "No league selected";
+    }
+
+    await refreshLeaguePointsAndTier();
+  }
+
+  async function refreshLeaguePointsAndTier() {
+    if (!activeLeagueId) {
+      $("league-points-num").textContent = "—";
+      $("tier-name").textContent = "—";
+      $("tier-subtext").textContent = "Join/select a league to see tier.";
+      applyTierOutline($("profile-card"), 0);
       return;
     }
-  }
 
-  // Prevent steps double logging (choose one)
-  if (habitKey === "steps_5k" || habitKey === "steps_10k") {
-    const keys = await getTodayLoggedKeys();
-    if (keys.includes("steps_5k") || keys.includes("steps_10k")) {
-      toast("You already logged Steps today.");
-      await refreshTodayLocks();
+    // Use RPC that you created earlier
+    const { data, error } = await sb.rpc("get_my_league_points_v2", { p_league_id: activeLeagueId });
+
+    if (error) {
+      $("league-points-num").textContent = "—";
+      $("tier-name").textContent = "—";
+      $("tier-subtext").textContent = "Could not load league points.";
       return;
     }
+
+    const leaguePoints = Array.isArray(data) ? (data[0]?.league_points ?? 0) : (data?.league_points ?? 0);
+    $("league-points-num").textContent = String(leaguePoints);
+
+    const tier = getTier(leaguePoints);
+    $("tier-name").textContent = tier.name;
+    $("tier-subtext").textContent = `Based on ${leaguePoints} league points.`;
+
+    applyTierOutline($("profile-card"), leaguePoints);
   }
 
-  // Insert habit log (unique constraint should prevent duplicates)
-  const { error } = await sb.from("habit_logs").insert({
-    user_id: currentUser.id,
-    habit_key: habitKey,
-    day_key: dayKey,
-    points: points,
-  });
+  // =========================
+  // Avatar upload (Storage)
+  // =========================
+  async function uploadAvatar(file) {
+    if (!file) return;
 
-  if (error) {
-    // 409 conflicts show as duplicate insert; treat as "already logged"
-    if (String(error.code) === "23505" || String(error.status) === "409") {
-      toast(`You already logged ${label} today.`);
-      await refreshTodayLocks();
-      return;
-    }
-    toast(`Error logging habit: ${error.message}`, "error");
-    return;
-  }
+    // simple square crop using canvas
+    const img = new Image();
+    const blobUrl = URL.createObjectURL(file);
+    img.src = blobUrl;
 
-  toast(`✅ Logged ${label} (+${points})`, "success");
-
-  // Refresh profile (points/streak updates)
-  await refreshProfileUI();
-  await refreshTodayLocks();
-
-  // If in a league, refresh league board too
-  if (activeLeagueId) {
-    await renderLeague(activeLeagueId);
-  }
-}
-
-// Hook up habit buttons
-function wireHabitButtons() {
-  HABITS.forEach((h) => {
-    const btn = $(h.btn);
-    btn.addEventListener("click", () => logHabit(h.key, h.points, h.label));
-    btn.addEventListener("click", () => {
-      if (btn.disabled) toast(btn.dataset.lockedReason || "Already logged today.");
+    await new Promise((res, rej) => {
+      img.onload = () => res();
+      img.onerror = (e) => rej(e);
     });
-  });
-}
 
-// -----------------------------------------------------
-// Avatar upload (Supabase Storage bucket: avatars)
-// -----------------------------------------------------
-async function uploadAvatar(file) {
-  if (!file || !currentUser) return;
+    const size = Math.min(img.width, img.height);
+    const sx = Math.floor((img.width - size) / 2);
+    const sy = Math.floor((img.height - size) / 2);
 
-  // Save as avatars/<user_id>/avatar.jpg
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const path = `${currentUser.id}/avatar.${ext}`;
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
 
-  const { error: upErr } = await sb.storage
-    .from("avatars")
-    .upload(path, file, { upsert: true });
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, sx, sy, size, size, 0, 0, 512, 512);
 
-  if (upErr) {
-    toast(`Avatar upload error: ${upErr.message}`, "error");
-    return;
-  }
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.9));
+    URL.revokeObjectURL(blobUrl);
 
-  const { data: pub } = sb.storage.from("avatars").getPublicUrl(path);
-  const url = pub?.publicUrl;
-
-  const { error: updErr } = await sb
-    .from("players")
-    .update({ avatar_url: url })
-    .eq("user_id", currentUser.id);
-
-  if (updErr) {
-    toast(`Avatar save error: ${updErr.message}`, "error");
-    return;
-  }
-
-  currentProfile.avatar_url = url;
-  $("avatar-img").src = url;
-  toast("✅ Profile photo updated", "success");
-
-  if (activeLeagueId) await renderLeague(activeLeagueId);
-}
-
-// -----------------------------------------------------
-// Leagues (private)
-// -----------------------------------------------------
-function showModeModal(show) {
-  if (show) $("mode-modal").classList.remove("hidden");
-  else $("mode-modal").classList.add("hidden");
-}
-
-function renderMyLeaguesList(leagues) {
-  const box = $("my-leagues");
-  box.innerHTML = "";
-
-  if (!leagues || leagues.length === 0) {
-    box.innerHTML = `
-      <div class="text-slate-400 text-sm">
-        You haven't created or joined any leagues! Create or join one.
-      </div>
-    `;
-    return;
-  }
-
-  leagues.forEach((l) => {
-    const div = document.createElement("button");
-    div.className =
-      "w-full text-left rounded-xl bg-slate-900 border border-slate-700 px-4 py-3 hover:bg-slate-800";
-    div.innerHTML = `
-      <div class="font-bold">${escapeHtml(l.name)}</div>
-      <div class="text-slate-400 text-xs">Invite code: <span class="font-mono">${escapeHtml(l.code || "")}</span></div>
-    `;
-    div.addEventListener("click", async () => {
-      activeLeagueId = l.id;
-      await renderLeague(l.id);
-      $("league-detail").classList.remove("hidden");
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    const path = `${me.id}/${Date.now()}.jpg`;
+    const { error: upErr } = await sb.storage.from("avatars").upload(path, blob, {
+      contentType: "image/jpeg",
+      upsert: true,
     });
-    box.appendChild(div);
-  });
-}
+    if (upErr) throw upErr;
 
-function escapeHtml(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+    const { data: pub } = sb.storage.from("avatars").getPublicUrl(path);
+    const avatarUrl = pub.publicUrl;
 
-async function loadMyLeagues() {
-  // leagues visible via RLS only if member
-  const { data, error } = await sb
-    .from("leagues")
-    .select("id,name,code,owner_id")
-    .order("created_at", { ascending: false });
+    const { error: updErr } = await sb.from("players").update({ avatar_url: avatarUrl }).eq("user_id", me.id);
+    if (updErr) throw updErr;
 
-  if (error) {
-    // If policies not ready, show friendly
-    $("my-leagues").innerHTML = `<div class="text-slate-400 text-sm">Couldn't load leagues yet.</div>`;
-    return;
-  }
-  renderMyLeaguesList(data);
-}
-
-// Create league (uses your RPC if present; else direct insert)
-async function createLeague(name) {
-  setModeMsg("");
-  const leagueName = (name || "").trim();
-  if (!leagueName) {
-    setModeMsg("Please enter a league name.");
-    return;
+    toast("Profile photo updated ✅");
+    await refreshProfileUI();
   }
 
-  // Prefer RPC create_league if you have it
-  // It should return: { id, name, code, owner_id }
-  const tryRpc = await sb.rpc("create_league", { league_name: leagueName });
-  if (!tryRpc.error && tryRpc.data) {
-    toast("✅ League created!", "success");
-    showModeModal(false);
-    await loadMyLeagues();
-    activeLeagueId = tryRpc.data.id;
-    await renderLeague(activeLeagueId);
+  // =========================
+  // Habit logging (robust insert + locks)
+  // =========================
+  async function fetchTodayLoggedHabits() {
+    todayLoggedSet.clear();
+    const { start, end } = startEndOfTodayUTC();
+
+    const { data, error } = await sb
+      .from("habit_logs")
+      .select("habit_key, created_at")
+      .eq("user_id", me.id)
+      .gte("created_at", start)
+      .lt("created_at", end);
+
+    if (error) {
+      console.warn("fetchTodayLoggedHabits error", error);
+      return;
+    }
+
+    (data || []).forEach((row) => {
+      if (row.habit_key) todayLoggedSet.add(row.habit_key);
+    });
+  }
+
+  function disableHabitButton(btnId, label) {
+    const b = $(btnId);
+    if (!b) return;
+    b.disabled = true;
+    b.classList.add("opacity-40", "cursor-not-allowed");
+    b.textContent = label || b.textContent;
+  }
+
+  function enableHabitButton(btnId, label) {
+    const b = $(btnId);
+    if (!b) return;
+    b.disabled = false;
+    b.classList.remove("opacity-40", "cursor-not-allowed");
+    if (label) b.textContent = label;
+  }
+
+  function syncHabitButtonLocks() {
+    // Normal habits
+    for (const [btnId, habitKey] of Object.entries(BTN_TO_HABIT)) {
+      const habit = HABITS[habitKey];
+      const baseLabel =
+        btnId === "btn-log-steps-5k" ? `Log Steps 5K–9.9K (+${habit.points})` :
+        btnId === "btn-log-steps-10k" ? `Log Steps 10K+ (+${habit.points})` :
+        `Log ${habit.name} (+${habit.points})`;
+
+      // Steps group: if any steps habit logged today -> disable both
+      if (habit.group === "steps") {
+        const stepsDone = todayLoggedSet.has("steps_5k") || todayLoggedSet.has("steps_10k");
+        if (stepsDone) disableHabitButton(btnId, "Logged ✅");
+        else enableHabitButton(btnId, baseLabel);
+        continue;
+      }
+
+      if (todayLoggedSet.has(habitKey)) disableHabitButton(btnId, "Logged ✅");
+      else enableHabitButton(btnId, baseLabel);
+    }
+  }
+
+  async function updateStreakAndPoints(pointsEarned) {
+    // Reads from players.last_tracked (timestamp) + players.streak
+    // Rule: if first habit today => update streak (today keeps, yesterday increments, else reset to 1)
+    const { data, error } = await sb
+      .from("players")
+      .select("streak,last_tracked,total_points")
+      .eq("user_id", me.id)
+      .single();
+
+    if (error) throw error;
+
+    const prevStreak = Number(data.streak || 0);
+    const lastTracked = data.last_tracked ? new Date(data.last_tracked) : null;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+
+    let newStreak = prevStreak;
+    if (!lastTracked) {
+      newStreak = 1;
+    } else {
+      const lastDay = new Date(lastTracked.getFullYear(), lastTracked.getMonth(), lastTracked.getDate());
+      if (lastDay.getTime() === today.getTime()) {
+        // already tracked today; streak unchanged
+      } else if (lastDay.getTime() === yesterday.getTime()) {
+        newStreak = prevStreak + 1;
+      } else {
+        newStreak = 1;
+      }
+    }
+
+    const newTotal = Number(data.total_points || 0) + Number(pointsEarned || 0);
+
+    const { error: updErr } = await sb
+      .from("players")
+      .update({ streak: newStreak, last_tracked: now.toISOString(), total_points: newTotal })
+      .eq("user_id", me.id);
+
+    if (updErr) throw updErr;
+  }
+
+  async function insertHabitLogRobust(habitKey, points) {
+    // Try insert with different optional columns depending on your table shape.
+    const base = {
+      user_id: me.id,
+      habit_key: habitKey,
+      points: points,
+    };
+
+    // try with checkin_date (common in your project)
+    {
+      const payload = { ...base, checkin_date: todayISODate() };
+      const { error } = await sb.from("habit_logs").insert(payload);
+      if (!error) return;
+      if (!String(error.message || "").toLowerCase().includes("column") && !String(error.message || "").toLowerCase().includes("does not exist")) {
+        // real error (409 duplicate, RLS, etc.)
+        throw error;
+      }
+    }
+
+    // try with day_key
+    {
+      const payload = { ...base, day_key: todayISODate() };
+      const { error } = await sb.from("habit_logs").insert(payload);
+      if (!error) return;
+      if (!String(error.message || "").toLowerCase().includes("column") && !String(error.message || "").toLowerCase().includes("does not exist")) {
+        throw error;
+      }
+    }
+
+    // fallback: insert only required columns
+    {
+      const { error } = await sb.from("habit_logs").insert(base);
+      if (!error) return;
+      throw error;
+    }
+  }
+
+  async function logHabit(habitKey) {
+    const habit = HABITS[habitKey];
+    if (!habit) return;
+
+    // local guard (for fast UX)
+    if (habit.group === "steps") {
+      if (todayLoggedSet.has("steps_5k") || todayLoggedSet.has("steps_10k")) {
+        toast("You already logged your steps today ✅", false);
+        return;
+      }
+    } else {
+      if (todayLoggedSet.has(habitKey)) {
+        toast(`You already logged ${habit.name} today ✅`, false);
+        return;
+      }
+    }
+
+    try {
+      await insertHabitLogRobust(habitKey, habit.points);
+
+      // update streak + global points
+      await updateStreakAndPoints(habit.points);
+
+      // refresh locks + UI
+      await fetchTodayLoggedHabits();
+      syncHabitButtonLocks();
+      await refreshProfileUI();
+
+      toast(`Logged ${habit.name} (+${habit.points}) ✅`);
+    } catch (e) {
+      const msg = e?.message || String(e);
+      // duplicate unique constraint → show friendly message
+      if (String(msg).includes("duplicate") || String(msg).includes("409")) {
+        toast(`You already logged that habit today ✅`, false);
+      } else {
+        toast(`Error logging habit: ${msg}`, false);
+      }
+      console.error(e);
+    }
+  }
+
+  async function refreshTodayLocks() {
+    await fetchTodayLoggedHabits();
+    syncHabitButtonLocks();
+  }
+
+  function wireHabitButtons() {
+    for (const [btnId, habitKey] of Object.entries(BTN_TO_HABIT)) {
+      const btn = $(btnId);
+      if (!btn) continue;
+      btn.addEventListener("click", () => logHabit(habitKey));
+    }
+  }
+
+  // =========================
+  // Leagues
+  // =========================
+  function setActiveLeague(id) {
+    activeLeagueId = id || null;
+    if (activeLeagueId) localStorage.setItem("hcl_active_league_id", activeLeagueId);
+    else localStorage.removeItem("hcl_active_league_id");
+  }
+
+  async function loadMyLeagues() {
+    // Pull leagues via join
+    const { data, error } = await sb
+      .from("league_members")
+      .select("league_id, role, joined_at, leagues:leagues(id,name,code,owner_id)")
+      .eq("user_id", me.id)
+      .order("joined_at", { ascending: false });
+
+    if (error) throw error;
+
+    myLeagues = (data || [])
+      .map((row) => ({
+        id: row.leagues?.id,
+        name: row.leagues?.name,
+        code: row.leagues?.code,
+        owner_id: row.leagues?.owner_id,
+        my_role: row.role,
+        joined_at: row.joined_at,
+      }))
+      .filter((x) => x.id);
+
+    // Restore active league if possible
+    const saved = localStorage.getItem("hcl_active_league_id");
+    if (saved && myLeagues.some((x) => x.id === saved)) {
+      setActiveLeague(saved);
+    } else {
+      setActiveLeague(myLeagues[0]?.id || null);
+    }
+
+    renderMyLeaguesList();
+    await refreshProfileUI();
+
+    if (activeLeagueId) {
+      await openLeagueHub(activeLeagueId);
+    } else {
+      closeLeagueHub();
+    }
+  }
+
+  function renderMyLeaguesList() {
+    const box = $("my-leagues");
+    if (!box) return;
+
+    if (!myLeagues.length) {
+      box.innerHTML = `<div class="text-slate-400 text-sm">You haven't created or joined any leagues! Create or join one.</div>`;
+      return;
+    }
+
+    box.innerHTML = myLeagues
+      .map((lg) => {
+        const isActive = lg.id === activeLeagueId;
+        return `
+          <button
+            data-league="${lg.id}"
+            class="w-full text-left px-4 py-3 rounded-2xl border ${isActive ? "border-amber-400/60 bg-slate-900" : "border-slate-700 bg-slate-900/40 hover:bg-slate-900"}">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div class="font-extrabold truncate">${lg.name}</div>
+                <div class="text-xs text-slate-400">Code: <span class="font-mono">${lg.code || "—"}</span></div>
+              </div>
+              <div class="text-xs text-slate-400">${isActive ? "Selected" : "Select"}</div>
+            </div>
+          </button>
+        `;
+      })
+      .join("");
+
+    [...box.querySelectorAll("button[data-league]")].forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-league");
+        setActiveLeague(id);
+        renderMyLeaguesList();
+        await refreshProfileUI();
+        await openLeagueHub(id);
+      });
+    });
+  }
+
+  function closeLeagueHub() {
+    $("league-detail").classList.add("hidden");
+  }
+
+  async function openLeagueHub(leagueId) {
     $("league-detail").classList.remove("hidden");
-    return;
+
+    const league = myLeagues.find((x) => x.id === leagueId);
+    if (!league) return;
+
+    $("league-title").textContent = league.name || "League";
+    $("league-code").textContent = league.code || "—";
+
+    // Owner tools visibility
+    const isOwner = league.owner_id === me.id;
+    $("league-owner-tools").classList.toggle("hidden", !isOwner);
+
+    // If owner, hide "Leave league" button (owner should delete instead)
+    $("btn-leave-league").classList.toggle("hidden", isOwner);
+
+    await renderLeagueMembers(leagueId);
+    await renderLeagueLeaderboard(leagueId);
+    await refreshLeaguePointsAndTier();
   }
 
-  // Fallback: direct insert (requires RLS insert policy with check owner_id=auth.uid())
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+  async function renderLeagueLeaderboard(leagueId) {
+    const wrap = $("league-leaderboard");
+    wrap.innerHTML = `<div class="text-slate-400 text-sm">Loading...</div>`;
 
-  const { data: inserted, error: insErr } = await sb
-    .from("leagues")
-    .insert({ name: leagueName, code, owner_id: currentUser.id })
-    .select()
-    .single();
-
-  if (insErr) {
-    setModeMsg(`Create league error: ${insErr.message}`);
-    return;
-  }
-
-  // Add self as member
-  await sb.from("league_members").insert({
-    league_id: inserted.id,
-    user_id: currentUser.id,
-    role: "owner",
-  });
-
-  toast("✅ League created!", "success");
-  showModeModal(false);
-  await loadMyLeagues();
-  activeLeagueId = inserted.id;
-  await renderLeague(activeLeagueId);
-  $("league-detail").classList.remove("hidden");
-}
-
-async function joinLeague(code) {
-  setModeMsg("");
-  const c = (code || "").trim().toUpperCase();
-  if (!c) {
-    setModeMsg("Please enter an invite code.");
-    return;
-  }
-
-  // Prefer RPC join_league if exists
-  const tryRpc = await sb.rpc("join_league", { invite_code: c });
-  if (!tryRpc.error) {
-    toast("✅ Joined league!", "success");
-    showModeModal(false);
-    await loadMyLeagues();
-    // Optionally open the league if returned
-    if (tryRpc.data?.league_id) {
-      activeLeagueId = tryRpc.data.league_id;
-      await renderLeague(activeLeagueId);
-      $("league-detail").classList.remove("hidden");
-    }
-    return;
-  }
-
-  // Fallback: manual join
-  const { data: league, error: findErr } = await sb
-    .from("leagues")
-    .select("id")
-    .eq("code", c)
-    .maybeSingle();
-
-  if (findErr || !league) {
-    setModeMsg("Could not find a league with that code.");
-    return;
-  }
-
-  const { error: memErr } = await sb.from("league_members").insert({
-    league_id: league.id,
-    user_id: currentUser.id,
-    role: "member",
-  });
-
-  if (memErr) {
-    setModeMsg(`Join error: ${memErr.message}`);
-    return;
-  }
-
-  toast("✅ Joined league!", "success");
-  showModeModal(false);
-  await loadMyLeagues();
-  activeLeagueId = league.id;
-  await renderLeague(activeLeagueId);
-  $("league-detail").classList.remove("hidden");
-}
-
-async function renderLeague(leagueId) {
-  setLeagueMsg("");
-
-  // Load league
-  const { data: league, error: lgErr } = await sb
-    .from("leagues")
-    .select("id,name,code,owner_id")
-    .eq("id", leagueId)
-    .single();
-
-  if (lgErr) {
-    toast(`League error: ${lgErr.message}`, "error");
-    return;
-  }
-
-  $("league-title").textContent = league.name;
-  $("league-code").textContent = league.code || "";
-
-  // Owner tools visible only if owner
-  if (league.owner_id === currentUser.id) {
-    $("league-owner-tools").classList.remove("hidden");
-  } else {
-    $("league-owner-tools").classList.add("hidden");
-  }
-
-  // Members list (via join to players)
-  const { data: mem, error: memErr } = await sb
-    .from("league_members")
-    .select("user_id,role,players(name,avatar_url,points,streak)")
-    .eq("league_id", leagueId);
-
-  if (memErr) {
-    toast(`Members error: ${memErr.message}`, "error");
-    return;
-  }
-
-  // Render members
-  const membersBox = $("league-members");
-  membersBox.innerHTML = "";
-
-  (mem || []).forEach((m) => {
-    const p = m.players || {};
-    const points = Number(p.points || 0);
-    const tier = leagueTier(points);
-
-    const row = document.createElement("div");
-    row.className =
-      "rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 flex items-center gap-3";
-
-    row.innerHTML = `
-      <img src="${escapeHtml(p.avatar_url || "")}" class="w-10 h-10 rounded-xl object-cover bg-slate-900 border border-slate-700"
-        onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%23111827 /%3E%3C/svg%3E'"/>
-      <div class="min-w-0">
-        <div class="font-bold truncate">${escapeHtml(p.name || "Player")}</div>
-        <div class="text-xs text-slate-400">${escapeHtml(m.role || "member")} • ${tier.name}</div>
-      </div>
-    `;
-    membersBox.appendChild(row);
-  });
-
-  // Leaderboard (top points within this league)
-  const leaderboard = (mem || [])
-    .map((m) => ({
-      user_id: m.user_id,
-      role: m.role,
-      name: m.players?.name || "Player",
-      avatar_url: m.players?.avatar_url || "",
-      points: Number(m.players?.points || 0),
-      streak: Number(m.players?.streak || 0),
-    }))
-    .sort((a, b) => b.points - a.points)
-    .slice(0, 20);
-
-  const lbBox = $("league-leaderboard");
-  lbBox.innerHTML = "";
-
-  leaderboard.forEach((p, idx) => {
-    const tier = leagueTier(p.points);
-    const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "🎖️";
-
-    const row = document.createElement("div");
-    row.className =
-      "rounded-2xl bg-slate-800 border border-slate-700 px-4 py-3 flex items-center justify-between gap-4";
-
-    row.innerHTML = `
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="text-xl">${medal}</div>
-        <img src="${escapeHtml(p.avatar_url || "")}" class="w-12 h-12 rounded-2xl object-cover bg-slate-900 border border-slate-700"
-          onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%23111827 /%3E%3C/svg%3E'"/>
-        <div class="min-w-0">
-          <div class="font-extrabold truncate">${escapeHtml(p.name)}</div>
-          <div class="text-slate-400 text-sm">● ${tier.name}</div>
-        </div>
-      </div>
-
-      <div class="text-right">
-        <div class="text-3xl font-extrabold text-amber-400">${p.points}</div>
-        <div class="text-slate-400 text-sm">points</div>
-      </div>
-    `;
-    lbBox.appendChild(row);
-  });
-
-  // Wire rename button
-  $("btn-update-league-name").onclick = async () => {
-    setLeagueMsg("");
-    const newName = ($("league-name-input").value || "").trim();
-    if (!newName) {
-      setLeagueMsg("Enter a new league name.");
+    const { data, error } = await sb.rpc("get_league_leaderboard_v2", { p_league_id: leagueId });
+    if (error) {
+      wrap.innerHTML = `<div class="text-red-300 text-sm">Leaderboard error: ${error.message}</div>`;
       return;
     }
 
+    if (!data?.length) {
+      wrap.innerHTML = `<div class="text-slate-400 text-sm">No members yet.</div>`;
+      return;
+    }
+
+    wrap.innerHTML = data
+      .map((row, idx) => {
+        const tier = getTier(row.league_points || 0);
+        return `
+          <button data-user="${row.user_id}" data-role="${row.role || "member"}" data-points="${row.league_points || 0}"
+            class="w-full text-left p-4 rounded-2xl border border-slate-700 bg-slate-950/30 hover:bg-slate-900 transition">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="text-slate-400 font-bold w-8">#${idx + 1}</div>
+                <img src="${row.avatar_url || "https://placehold.co/64x64/png?text=%F0%9F%91%A4"}"
+                  class="w-10 h-10 rounded-xl object-cover border border-slate-700 bg-slate-900" />
+                <div class="min-w-0">
+                  <div class="font-extrabold truncate">${row.name || "Player"}</div>
+                  <div class="text-xs text-slate-400">Tier: ${tier.name} • Streak: ${row.streak || 0} • Role: ${row.role || "member"}</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-2xl font-extrabold text-cyan-300">${row.league_points || 0}</div>
+                <div class="text-xs text-slate-400">points</div>
+              </div>
+            </div>
+          </button>
+        `;
+      })
+      .join("");
+
+    [...wrap.querySelectorAll("button[data-user]")].forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const userId = btn.getAttribute("data-user");
+        const role = btn.getAttribute("data-role") || "member";
+        await openPlayerProfileModal(userId, role, leagueId);
+      });
+    });
+  }
+
+  async function renderLeagueMembers(leagueId) {
+    const wrap = $("league-members");
+    wrap.innerHTML = `<div class="text-slate-400 text-sm">Loading...</div>`;
+
+    const { data, error } = await sb
+      .from("league_members")
+      .select("user_id, role, players:players(name,avatar_url,email,streak)")
+      .eq("league_id", leagueId)
+      .order("joined_at", { ascending: true });
+
+    if (error) {
+      wrap.innerHTML = `<div class="text-red-300 text-sm">Members error: ${error.message}</div>`;
+      return;
+    }
+
+    if (!data?.length) {
+      wrap.innerHTML = `<div class="text-slate-400 text-sm">No members.</div>`;
+      return;
+    }
+
+    wrap.innerHTML = data
+      .map((m) => {
+        const p = m.players || {};
+        return `
+          <button data-user="${m.user_id}" data-role="${m.role || "member"}"
+            class="w-full text-left px-3 py-2 rounded-xl bg-slate-950/30 border border-slate-700 hover:bg-slate-900">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                <img src="${p.avatar_url || "https://placehold.co/64x64/png?text=%F0%9F%91%A4"}"
+                  class="w-9 h-9 rounded-xl object-cover border border-slate-700 bg-slate-900" />
+                <div class="min-w-0">
+                  <div class="font-bold truncate">${p.name || "Player"}</div>
+                  <div class="text-xs text-slate-400 truncate">${m.role || "member"}</div>
+                </div>
+              </div>
+              <div class="text-xs text-slate-400">View</div>
+            </div>
+          </button>
+        `;
+      })
+      .join("");
+
+    [...wrap.querySelectorAll("button[data-user]")].forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const userId = btn.getAttribute("data-user");
+        const role = btn.getAttribute("data-role") || "member";
+        await openPlayerProfileModal(userId, role, leagueId);
+      });
+    });
+  }
+
+  async function openPlayerProfileModal(userId, role, leagueId) {
+    // Fetch profile
+    const { data: p, error: pErr } = await sb
+      .from("players")
+      .select("user_id,name,email,avatar_url,streak")
+      .eq("user_id", userId)
+      .single();
+
+    if (pErr) {
+      toast(`Profile error: ${pErr.message}`, false);
+      return;
+    }
+
+    // League points via leaderboard RPC (fast + consistent)
+    let leaguePoints = 0;
+    try {
+      const { data: lb } = await sb.rpc("get_league_leaderboard_v2", { p_league_id: leagueId });
+      const row = (lb || []).find((x) => x.user_id === userId);
+      leaguePoints = row?.league_points || 0;
+    } catch (_) {}
+
+    // Achievements count (global)
+    let achCount = 0;
+    try {
+      const { count } = await sb
+        .from("player_achievements")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      achCount = count || 0;
+    } catch (_) {}
+
+    $("pm-avatar").src = p.avatar_url || "https://placehold.co/200x200/png?text=%F0%9F%91%A4";
+    $("pm-name").textContent = p.name || "Player";
+    $("pm-email").textContent = p.email || "";
+    $("pm-role").textContent = role || "member";
+    $("pm-streak").textContent = String(p.streak || 0);
+    $("pm-ach").textContent = String(achCount);
+    $("pm-league-points").textContent = String(leaguePoints);
+
+    const tier = getTier(leaguePoints);
+    $("pm-tier").textContent = `Tier: ${tier.name}`;
+
+    applyTierOutline($("player-modal-card"), leaguePoints);
+
+    showPlayerModal(true);
+  }
+
+  async function createLeague(name) {
+    // Prefer RPC create_league if it exists (and you already got it working)
+    const { data, error } = await sb.rpc("create_league", { p_name: name, p_is_private: true });
+
+    if (error) {
+      // fallback: some setups use (name,is_private) params
+      const r2 = await sb.rpc("create_league", { name, is_private: true });
+      if (r2.error) throw r2.error;
+      return r2.data;
+    }
+    return data;
+  }
+
+  async function joinLeagueByCode(code) {
+    // Prefer RPC if you have it
+    const r1 = await sb.rpc("join_league_by_code", { p_code: code });
+    if (!r1.error) return r1.data;
+
+    // fallback alt param name
+    const r2 = await sb.rpc("join_league_by_code", { code });
+    if (!r2.error) return r2.data;
+
+    throw r1.error;
+  }
+
+  async function leaveLeague(leagueId) {
+    const { error } = await sb
+      .from("league_members")
+      .delete()
+      .eq("league_id", leagueId)
+      .eq("user_id", me.id);
+
+    if (error) throw error;
+
+    // If they left the active league, select another
+    if (activeLeagueId === leagueId) {
+      setActiveLeague(null);
+    }
+
+    toast("Left league ✅");
+    await loadMyLeagues();
+  }
+
+  // =========================
+  // Invite link auto-join
+  // =========================
+  async function tryAutoJoinFromURL() {
+    const url = new URL(window.location.href);
+    const joinCode = (url.searchParams.get("join") || "").trim();
+
+    if (!joinCode) return;
+
+    // remove join param from URL (clean)
+    url.searchParams.delete("join");
+    window.history.replaceState({}, "", url.toString());
+
+    // attempt join
+    try {
+      await joinLeagueByCode(joinCode);
+      toast("Joined league ✅");
+      await loadMyLeagues();
+    } catch (e) {
+      toast(`Join link error: ${e?.message || e}`, false);
+    }
+  }
+
+  // =========================
+  // Owner tools
+  // =========================
+  async function updateLeagueName(leagueId, newName) {
     const { error } = await sb
       .from("leagues")
       .update({ name: newName })
       .eq("id", leagueId);
 
-    if (error) {
-      setLeagueMsg(`Update error: ${error.message}`);
+    if (error) throw error;
+
+    toast("League name updated ✅");
+    await loadMyLeagues();
+    await openLeagueHub(leagueId);
+  }
+
+  async function deleteLeague(leagueId) {
+    // Owner only via RLS
+    const { error } = await sb.from("leagues").delete().eq("id", leagueId);
+    if (error) throw error;
+
+    toast("League deleted ✅");
+    setActiveLeague(null);
+    await loadMyLeagues();
+    closeLeagueHub();
+  }
+
+  // =========================
+  // Wiring UI
+  // =========================
+  function wireUI() {
+    // Auth
+    $("btn-signup").addEventListener("click", async () => {
+      setAuthMsg("");
+      const email = $("su-email").value.trim().toLowerCase();
+      const password = $("su-pass").value;
+      const name = $("su-name").value.trim();
+
+      if (!email || !password || !name) return setAuthMsg("Please enter email, password, and display name.");
+
+      const redirectTo = window.location.origin + window.location.pathname;
+
+      const { error } = await sb.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectTo,
+          data: { name },
+        },
+      });
+
+      if (error) return setAuthMsg(`Signup error: ${error.message}`);
+      setAuthMsg("Signup successful! Check your email to verify, then log in.");
+    });
+
+    $("btn-login").addEventListener("click", async () => {
+      setAuthMsg("");
+      const email = $("li-email").value.trim().toLowerCase();
+      const password = $("li-pass").value;
+
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) return setAuthMsg(`Login error: ${error.message}`);
+
+      if (!data?.user) return setAuthMsg("Login failed. Try again.");
+      await onAuthed(data.user);
+    });
+
+    $("btn-logout").addEventListener("click", async () => {
+      await sb.auth.signOut();
+      me = null;
+      myProfile = null;
+      myLeagues = [];
+      activeLeagueId = null;
+      showAuth();
+      setAuthMsg("Logged out.");
+    });
+
+    // Modal open/close (ONLY from button)
+    $("btn-open-mode").addEventListener("click", () => {
+      setModeMsg("");
+      showModeModal(true);
+    });
+    $("btn-close-mode").addEventListener("click", () => showModeModal(false));
+
+    // Create / join
+    $("btn-create-league").addEventListener("click", async () => {
+      setModeMsg("");
+      const name = $("create-league-name").value.trim();
+      if (!name) return setModeMsg("Enter a league name.");
+
+      try {
+        await createLeague(name);
+        toast("League created ✅");
+        showModeModal(false);
+        await loadMyLeagues();
+      } catch (e) {
+        setModeMsg(`Create league error: ${e?.message || e}`);
+      }
+    });
+
+    $("btn-join-league").addEventListener("click", async () => {
+      setModeMsg("");
+      const code = $("join-league-code").value.trim();
+      if (!code) return setModeMsg("Enter an invite code.");
+
+      try {
+        await joinLeagueByCode(code);
+        toast("Joined league ✅");
+        showModeModal(false);
+        await loadMyLeagues();
+      } catch (e) {
+        setModeMsg(`Join league error: ${e?.message || e}`);
+      }
+    });
+
+    // League hub buttons
+    $("btn-league-refresh").addEventListener("click", async () => {
+      if (!activeLeagueId) return;
+      await openLeagueHub(activeLeagueId);
+      toast("Refreshed ✅");
+    });
+
+    $("btn-copy-code").addEventListener("click", async () => {
+      const lg = myLeagues.find((x) => x.id === activeLeagueId);
+      if (!lg?.code) return toast("No invite code found", false);
+
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.hash = "";
+      url.searchParams.set("join", lg.code);
+
+      await navigator.clipboard.writeText(url.toString());
+      toast("Invite link copied ✅");
+    });
+
+    $("btn-leave-league").addEventListener("click", async () => {
+      if (!activeLeagueId) return;
+
+      const ok = confirm("Leave this league? You can re-join later with the code.");
+      if (!ok) return;
+
+      try {
+        await leaveLeague(activeLeagueId);
+      } catch (e) {
+        toast(`Leave error: ${e?.message || e}`, false);
+      }
+    });
+
+    // Owner tools
+    $("btn-update-league-name").addEventListener("click", async () => {
+      if (!activeLeagueId) return;
+      const newName = $("league-name-input").value.trim();
+      if (!newName) return setLeagueMsg("Enter a new league name.");
+
+      try {
+        await updateLeagueName(activeLeagueId, newName);
+        $("league-name-input").value = "";
+        setLeagueMsg("");
+      } catch (e) {
+        setLeagueMsg(`Update error: ${e?.message || e}`);
+      }
+    });
+
+    $("btn-delete-league").addEventListener("click", async () => {
+      if (!activeLeagueId) return;
+
+      const ok = confirm("Delete this league permanently? This removes the league for everyone.");
+      if (!ok) return;
+
+      try {
+        await deleteLeague(activeLeagueId);
+      } catch (e) {
+        setLeagueMsg(`Delete error: ${e?.message || e}`);
+      }
+    });
+
+    // Player modal close
+    $("btn-close-player").addEventListener("click", () => showPlayerModal(false));
+    $("player-modal").addEventListener("click", (e) => {
+      if (e.target === $("player-modal")) showPlayerModal(false);
+    });
+
+    // Avatar upload
+    $("avatar-file").addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        await uploadAvatar(file);
+      } catch (err) {
+        toast(`Upload error: ${err?.message || err}`, false);
+      } finally {
+        e.target.value = "";
+      }
+    });
+  }
+
+  // =========================
+  // Auth flow + init
+  // =========================
+  async function onAuthed(user) {
+    me = user;
+
+    // Ensure profile
+    const name = user.user_metadata?.name || "Player";
+    myProfile = await ensureProfile(user, name);
+
+    showApp();
+    wireHabitButtons();
+
+    // IMPORTANT: modal does NOT auto-open
+    // (only opens when player clicks Create/Join)
+
+    await refreshTodayLocks();
+    await loadMyLeagues();
+    await refreshProfileUI();
+
+    // Auto-join invite link if present
+    await tryAutoJoinFromURL();
+  }
+
+  async function init() {
+    wireUI();
+
+    // restore session
+    const { data } = await sb.auth.getSession();
+    const session = data.session;
+
+    if (!session?.user) {
+      showAuth();
       return;
     }
 
-    toast("✅ League name updated", "success");
-    $("league-name-input").value = "";
-    await loadMyLeagues();
-    await renderLeague(leagueId);
-  };
-
-  // Copy code
-  $("btn-copy-code").onclick = async () => {
     try {
-      await navigator.clipboard.writeText(league.code || "");
-      toast("✅ Invite code copied", "success");
-    } catch {
-      toast("Copy failed — you can manually select the code.", "error");
+      await onAuthed(session.user);
+    } catch (e) {
+      console.error(e);
+      showAuth();
+      setAuthMsg(`Session error: ${e?.message || e}`);
     }
-  };
-}
-
-// Delete league (owner only)
-$("btn-delete-league").addEventListener("click", async () => {
-  if (!activeLeagueId) return;
-
-  const ok = confirm(
-    "Are you sure you want to delete this league?\n\nThis will remove the league and all memberships. This cannot be undone."
-  );
-  if (!ok) return;
-
-  // delete memberships first
-  const { error: memErr } = await sb
-    .from("league_members")
-    .delete()
-    .eq("league_id", activeLeagueId);
-
-  if (memErr) {
-    toast(`Delete error (members): ${memErr.message}`, "error");
-    return;
   }
 
-  // delete league (RLS allows only owner)
-  const { error: lgErr } = await sb
-    .from("leagues")
-    .delete()
-    .eq("id", activeLeagueId);
-
-  if (lgErr) {
-    toast(`Delete error (league): ${lgErr.message}`, "error");
-    return;
-  }
-
-  toast("✅ League deleted.", "success");
-  $("league-detail").classList.add("hidden");
-  activeLeagueId = null;
-  await loadMyLeagues();
-});
-
-// -----------------------------------------------------
-// Auth wiring
-// -----------------------------------------------------
-$("btn-signup").addEventListener("click", async () => {
-  setAuthMsg("");
-
-  const email = $("su-email").value.trim().toLowerCase();
-  const password = $("su-pass").value;
-  const name = $("su-name").value.trim();
-
-  if (!email || !password || !name) {
-    setAuthMsg("Please enter email, password, and display name.");
-    return;
-  }
-
-  const redirectTo = window.location.origin + window.location.pathname;
-
-  const { error } = await sb.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: redirectTo,
-      data: { name },
-    },
-  });
-
-  if (error) {
-    setAuthMsg(`Signup error: ${error.message}`);
-    return;
-  }
-
-  setAuthMsg("Signup successful! Check your email and click the verification link, then come back and log in.");
-});
-
-$("btn-login").addEventListener("click", async () => {
-  setAuthMsg("");
-
-  const email = $("li-email").value.trim().toLowerCase();
-  const password = $("li-pass").value;
-
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    setAuthMsg(`Login error: ${error.message}`);
-    return;
-  }
-
-  currentUser = data.user;
-  const displayName = currentUser.user_metadata?.name || "Player";
-  currentProfile = await ensurePlayerProfile(currentUser, displayName);
-  await initAfterLogin();
-});
-
-$("btn-logout").addEventListener("click", async () => {
-  await sb.auth.signOut();
-  currentUser = null;
-  currentProfile = null;
-  activeLeagueId = null;
-  showAuth();
-  toast("Logged out.");
-});
-
-// -----------------------------------------------------
-// Mode modal wiring
-// -----------------------------------------------------
-$("btn-open-mode").addEventListener("click", () => {
-  setModeMsg("");
-  showModeModal(true);
-});
-
-$("btn-close-mode").addEventListener("click", () => {
-  showModeModal(false);
-});
-
-$("btn-mode-solo").addEventListener("click", async () => {
-  // Solo = just close modal; no league join
-  toast("✅ Solo mode selected", "success");
-  showModeModal(false);
-  $("league-detail").classList.add("hidden");
-  activeLeagueId = null;
-});
-
-$("btn-create-league").addEventListener("click", async () => {
-  await createLeague($("create-league-name").value);
-});
-
-$("btn-join-league").addEventListener("click", async () => {
-  await joinLeague($("join-league-code").value);
-});
-
-$("btn-league-refresh").addEventListener("click", async () => {
-  if (activeLeagueId) await renderLeague(activeLeagueId);
-});
-
-// Avatar file input
-$("avatar-file").addEventListener("change", async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  await uploadAvatar(file);
-  e.target.value = "";
-});
-
-// Wire habits
-wireHabitButtons();
-
-// -----------------------------------------------------
-// Boot: restore session
-// -----------------------------------------------------
-(async function init() {
-  // session restore
-  const { data } = await sb.auth.getSession();
-  const session = data.session;
-
-  if (!session?.user) {
-    showAuth();
-    return;
-  }
-
-  currentUser = session.user;
-  const displayName = currentUser.user_metadata?.name || "Player";
-  currentProfile = await ensurePlayerProfile(currentUser, displayName);
-  await initAfterLogin();
+  init();
 })();
