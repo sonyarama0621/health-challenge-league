@@ -52,6 +52,17 @@
     return h >>> 0;
   }
 
+  const BUILTIN_HABITS = {
+    water: { name: "Water", points: 5, color: "bg-sky-600 hover:bg-sky-500" },
+    protein: { name: "Protein", points: 8, color: "bg-red-600 hover:bg-red-500" },
+    steps: { name: "Steps", points: 10, color: "bg-blue-700 hover:bg-blue-600" },
+    workout: { name: "Workout", points: 12, color: "bg-emerald-700 hover:bg-emerald-600" },
+    reading: { name: "Reading", points: 9, color: "bg-orange-700 hover:bg-orange-600" },
+    sleep: { name: "Sleep", points: 11, color: "bg-violet-700 hover:bg-violet-600" },
+    no_sugar: { name: "No Added Sugar", points: 7, color: "bg-fuchsia-700 hover:bg-fuchsia-600" },
+    no_coke: { name: "No Coke", points: 5, color: "bg-amber-700 hover:bg-amber-600" }
+  };
+
   const authBox = $("auth-box");
   const appShell = $("app-shell");
   const authMsg = $("auth-msg");
@@ -90,6 +101,8 @@
   let currentUser = null;
   let currentProfile = null;
   let selectedLeague = null;
+  let playerHabits = [];
+  let activeMindGame = "guess";
 
   async function ensurePlayer(user, fallbackName) {
     const { data: existing, error: e1 } = await sb
@@ -139,7 +152,6 @@
     }
 
     if (uniqueDays.length === 0) return 0;
-
     const today = todayKeyLocal();
     if (uniqueDays[0] !== today) return 0;
 
@@ -213,20 +225,219 @@
   }
 
   // ----------------------------
-  // HABITS
+  // PLAYER HABITS
   // ----------------------------
-  const HABITS = [
-    { key: "water", label: "Water", points: 5, btn: "btn-log-water" },
-    { key: "protein", label: "Protein", points: 8, btn: "btn-log-protein" },
-    { key: "steps_5k", label: "Steps (5K–9.9K)", points: 6, btn: "btn-log-steps-5k", group: "steps" },
-    { key: "steps_10k", label: "Steps (10K+)", points: 10, btn: "btn-log-steps-10k", group: "steps" },
-    { key: "workout", label: "Workout", points: 12, btn: "btn-log-workout" },
-    { key: "reading", label: "Reading", points: 9, btn: "btn-log-reading" },
-    { key: "sleep", label: "Sleep", points: 11, btn: "btn-log-sleep" },
-    { key: "no_sugar", label: "No Added Sugar", points: 7, btn: "btn-log-nosugar" },
-    { key: "no_coke", label: "No Coke", points: 5, btn: "btn-log-nocoke" },
-  ];
+  async function seedDefaultsIfNeeded() {
+    const { data, error } = await sb
+      .from("player_habits")
+      .select("id")
+      .eq("user_id", currentUser.id)
+      .limit(1);
 
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      await sb.rpc("seed_default_player_habits");
+      $("habit-setup-modal").classList.remove("hidden");
+      await loadPlayerHabits();
+    }
+  }
+
+  async function loadPlayerHabits() {
+    const { data, error } = await sb
+      .from("player_habits")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+
+    if (error) throw error;
+    playerHabits = data || [];
+    renderHabitCards();
+    renderProfileHabits();
+    renderSetupCustomList();
+  }
+
+  function renderProfileHabits() {
+    const box = $("profile-habits-list");
+    box.innerHTML = "";
+
+    if (!playerHabits.length) {
+      box.innerHTML = `<div class="text-slate-300 text-sm">No habits selected yet.</div>`;
+      return;
+    }
+
+    for (const h of playerHabits) {
+      const row = document.createElement("div");
+      row.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-3 flex items-center justify-between gap-3";
+      row.innerHTML = `
+        <div>
+          <div class="font-extrabold">${h.habit_name}</div>
+          <div class="text-slate-300 text-xs">
+            ${h.is_custom ? "Custom personal habit" : "Built-in habit"} • ${h.habit_key === "steps" ? "1K = 1 point, 10K+ = 10 points" : `${h.points} points`}
+          </div>
+        </div>
+      `;
+      box.appendChild(row);
+    }
+  }
+
+  function renderHabitCards() {
+    const box = $("habit-cards");
+    box.innerHTML = "";
+
+    if (!playerHabits.length) {
+      box.innerHTML = `<div class="text-slate-300 text-sm">No habits selected yet. Open Profile → Edit Habits.</div>`;
+      return;
+    }
+
+    for (const h of playerHabits) {
+      if (h.habit_key === "steps") {
+        const card = document.createElement("div");
+        card.className = "md:col-span-2 bg-slate-900/50 border border-slate-700 rounded-xl p-4";
+
+        card.innerHTML = `
+          <div class="font-extrabold text-lg">Steps</div>
+          <div class="text-slate-300 text-sm mt-1">Slide to your step count. 1K = 1 point, 10K+ = 10 points.</div>
+
+          <div class="mt-4">
+            <input id="steps-range" type="range" min="0" max="10000" step="1000" value="0" class="w-full" />
+            <div class="mt-3 flex items-center justify-between text-slate-200">
+              <div><span id="steps-display" class="font-extrabold">0</span> steps</div>
+              <div><span id="steps-points" class="font-extrabold text-amber-300">0</span> points</div>
+            </div>
+          </div>
+
+          <button id="btn-log-steps" class="mt-4 w-full font-bold py-4 rounded-xl bg-blue-700 hover:bg-blue-600">
+            Log Steps
+          </button>
+        `;
+
+        box.appendChild(card);
+
+        const range = $("steps-range");
+        const display = $("steps-display");
+        const pts = $("steps-points");
+        const updateStepsUI = () => {
+          const v = Number(range.value || 0);
+          const points = Math.min(10, Math.floor(v / 1000));
+          display.textContent = v.toLocaleString();
+          pts.textContent = points;
+        };
+        range.addEventListener("input", updateStepsUI);
+        updateStepsUI();
+
+        $("btn-log-steps").addEventListener("click", async () => {
+          const v = Number(range.value || 0);
+          const points = Math.min(10, Math.floor(v / 1000));
+          if (v < 1000) {
+            toast("Log at least 1,000 steps.");
+            return;
+          }
+          await logHabit("steps", "Steps", points);
+        });
+
+        continue;
+      }
+
+      const meta = BUILTIN_HABITS[h.habit_key] || {};
+      const color = meta.color || "bg-slate-700 hover:bg-slate-600";
+      const pointsText = `(+${h.points})`;
+
+      const btn = document.createElement("button");
+      btn.className = `habit-btn w-full font-bold py-4 rounded-xl ${color}`;
+      btn.id = `habit-${h.habit_key}`;
+      btn.textContent = `Log ${h.habit_name} ${pointsText}`;
+      btn.addEventListener("click", async () => {
+        await logHabit(h.habit_key, h.habit_name, h.points);
+      });
+      box.appendChild(btn);
+    }
+  }
+
+  function renderSetupCustomList() {
+    const box = $("setup-custom-list");
+    box.innerHTML = "";
+
+    const customs = playerHabits.filter(h => h.is_custom);
+    if (!customs.length) return;
+
+    for (const h of customs) {
+      const row = document.createElement("div");
+      row.className = "bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 flex items-center justify-between gap-3";
+      row.innerHTML = `
+        <div class="min-w-0">
+          <div class="font-extrabold truncate">${h.habit_name}</div>
+          <div class="text-slate-300 text-xs">${h.points} points • personal only</div>
+        </div>
+        <button class="btn-remove px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500">Remove</button>
+      `;
+      row.querySelector(".btn-remove").addEventListener("click", async () => {
+        await deactivateHabit(h.id);
+      });
+      box.appendChild(row);
+    }
+  }
+
+  async function deactivateHabit(id) {
+    const { error } = await sb
+      .from("player_habits")
+      .update({ is_active: false })
+      .eq("id", id)
+      .eq("user_id", currentUser.id);
+
+    if (error) {
+      console.error(error);
+      toast("Could not remove habit.");
+      return;
+    }
+
+    toast("Habit removed.");
+    await loadPlayerHabits();
+    await refreshHabitButtonStates();
+  }
+
+  async function addCustomHabit(name, points) {
+    const { data, error } = await sb.rpc("create_custom_habit", {
+      p_habit_name: name,
+      p_points: points
+    });
+
+    if (error) {
+      console.error(error);
+      $("habit-setup-msg").textContent = error.message;
+      return;
+    }
+
+    $("habit-setup-msg").textContent = data?.message || "Custom habit added.";
+    $("setup-custom-name").value = "";
+    $("setup-custom-points").value = "5";
+    await loadPlayerHabits();
+  }
+
+  async function saveHabitSelections() {
+    const checks = [...document.querySelectorAll(".setup-habit")];
+    for (const c of checks) {
+      const habitKey = c.value;
+      const { error } = await sb
+        .from("player_habits")
+        .update({ is_active: c.checked })
+        .eq("user_id", currentUser.id)
+        .eq("habit_key", habitKey);
+
+      if (error) console.error(error);
+    }
+
+    $("habit-setup-msg").textContent = "Habits saved!";
+    await loadPlayerHabits();
+    await refreshHabitButtonStates();
+    toast("Your habits were saved.");
+    setTimeout(() => $("habit-setup-modal").classList.add("hidden"), 600);
+  }
+
+  // ----------------------------
+  // HABIT LOGGING
+  // ----------------------------
   async function refreshHabitButtonStates() {
     if (!currentUser) return;
 
@@ -240,32 +451,31 @@
     if (error) throw error;
 
     const logged = new Set((data || []).map(r => r.habit_key));
-    const stepsLogged = logged.has("steps_5k") || logged.has("steps_10k");
 
-    for (const h of HABITS) {
-      const btn = $(h.btn);
-      const already = logged.has(h.key) || (h.group === "steps" && stepsLogged);
-      setBtnDisabled(btn, already);
+    for (const h of playerHabits) {
+      if (h.habit_key === "steps") {
+        setBtnDisabled($("btn-log-steps"), logged.has("steps"));
+      } else {
+        setBtnDisabled($(`habit-${h.habit_key}`), logged.has(h.habit_key));
+      }
     }
   }
 
   async function logHabit(habitKey, label, points) {
     if (!currentUser) return;
-
     const today = todayKeyLocal();
-    const keysToCheck = habitKey.startsWith("steps_") ? ["steps_5k", "steps_10k"] : [habitKey];
 
     const { data: existing, error: e1 } = await sb
       .from("habit_logs")
       .select("id")
       .eq("user_id", currentUser.id)
       .eq("log_date", today)
-      .in("habit_key", keysToCheck);
+      .eq("habit_key", habitKey);
 
     if (e1) { toast("Error checking today’s logs."); console.error(e1); return; }
 
     if ((existing || []).length > 0) {
-      toast(habitKey.startsWith("steps_") ? "You already logged Steps today." : `You already logged ${label} today.`);
+      toast(`You already logged ${label} today.`);
       await refreshHabitButtonStates();
       return;
     }
@@ -281,11 +491,7 @@
   }
 
   function wireHabitButtons() {
-    for (const h of HABITS) {
-      const btn = $(h.btn);
-      if (!btn) continue;
-      btn.addEventListener("click", async () => logHabit(h.key, h.label, h.points));
-    }
+    // dynamic habit buttons are wired when rendered
   }
 
   // ----------------------------
@@ -330,7 +536,6 @@
     for (const lg of leagues) {
       const card = document.createElement("div");
       card.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex items-center justify-between gap-4";
-
       card.innerHTML = `
         <div class="min-w-0">
           <div class="font-extrabold text-lg truncate">${lg.name}</div>
@@ -338,12 +543,10 @@
         </div>
         <button class="btn-open px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Open</button>
       `;
-
       card.querySelector(".btn-open").addEventListener("click", async () => {
         selectedLeague = lg;
         await loadLeaguePage(selectedLeague);
       });
-
       list.appendChild(card);
     }
   }
@@ -404,7 +607,6 @@
             <div class="font-extrabold text-lg truncate">${r.name || "Player"}</div>
           </div>
         </div>
-
         <div class="text-right">
           <div class="text-3xl font-extrabold text-amber-300">${Number(r.points || 0)}</div>
           <div class="text-slate-400 text-xs">points</div>
@@ -422,6 +624,9 @@
 
     const { data, error } = await sb.rpc("create_league", { league_name: name, is_private: true });
     if (error) { console.error(error); $("create-league-msg").textContent = `Create league error: ${error.message}`; return; }
+
+    const leagueId = data?.id || data?.league_id;
+    if (leagueId) await sb.rpc("seed_league_default_habits", { p_league_id: leagueId });
 
     const code = data?.code || data?.invite_code || data?.join_code || "";
     $("create-league-msg").textContent = code ? `League created! Invite code: ${code}` : `League created!`;
@@ -455,7 +660,7 @@
   }
 
   // ----------------------------
-  // AVATAR UPLOAD
+  // AVATAR
   // ----------------------------
   async function uploadAvatar(file) {
     if (!currentUser) return;
@@ -604,19 +809,19 @@
   }
 
   // ----------------------------
-  // MIND GAMES (4 games)
+  // MIND GAMES
   // ----------------------------
-  let activeMindGame = "guess";
-
   function setMindTab(tab) {
     activeMindGame = tab;
     const tabs = ["guess", "wordle", "riddle", "memory"];
     for (const t of tabs) {
       const btn = $(`mg-tab-${t}`);
       const panel = $(`mg-panel-${t}`);
-      if (btn) btn.classList.toggle("bg-indigo-500", t === tab);
-      if (btn) btn.classList.toggle("text-slate-900", t === tab);
-      if (btn) btn.classList.toggle("bg-slate-700", t !== tab);
+      if (btn) {
+        btn.classList.toggle("bg-indigo-500", t === tab);
+        btn.classList.toggle("text-slate-900", t === tab);
+        btn.classList.toggle("bg-slate-700", t !== tab);
+      }
       if (panel) panel.classList.toggle("hidden", t !== tab);
     }
   }
@@ -647,7 +852,7 @@
     if (error) console.error(error);
   }
 
-  // --- Guess (existing) ---
+  // GUESS
   async function mindgameStateGuess() {
     const today = todayKeyLocal();
     const key = `mg_guess10_${today}_${currentUser?.id || ""}`;
@@ -657,13 +862,11 @@
 
   async function loadGuessUI() {
     if (!currentUser) return;
-
     const { played, row } = await alreadyPlayed("guess10");
     const msg = $("mg-msg");
     const doneBox = $("mg-done");
     const left = $("mg-left");
     const btn = $("btn-mg-try");
-
     const { key, state } = await mindgameStateGuess();
 
     if (played || state.done) {
@@ -686,7 +889,6 @@
 
   async function tryGuess() {
     if (!currentUser) return;
-
     const { played } = await alreadyPlayed("guess10");
     if (played) { await loadGuessUI(); return; }
 
@@ -723,7 +925,7 @@
     localStorage.setItem(key, JSON.stringify(state));
   }
 
-  // --- Wordle ---
+  // WORDLE
   const WORDS = [
     "HEART","SLEEP","WATER","POWER","TRAIN","HABIT","SMILE","FOCUS","BRAVE","BOOST",
     "APPLE","GRAPE","ALARM","MIGHT","PLANT","GLOWS","NURSE","CLEAN","SWEAT","PEACE"
@@ -766,15 +968,10 @@
         if (guess.length === 5) {
           const g = guess.toUpperCase();
           const t = target;
-          if (ch && ch === t[c]) {
-            cell.classList.add("bg-emerald-700");
-          } else if (ch && t.includes(ch)) {
-            cell.classList.add("bg-amber-700");
-          } else if (ch) {
-            cell.classList.add("bg-slate-700");
-          }
+          if (ch && ch === t[c]) cell.classList.add("bg-emerald-700");
+          else if (ch && t.includes(ch)) cell.classList.add("bg-amber-700");
+          else if (ch) cell.classList.add("bg-slate-700");
         }
-
         row.appendChild(cell);
       }
       grid.appendChild(row);
@@ -783,11 +980,9 @@
 
   async function loadWordleUI() {
     if (!currentUser) return;
-
     const msg = $("wordle-msg");
     const done = $("wordle-done");
     const btn = $("btn-wordle");
-
     const { played, row } = await alreadyPlayed("wordle5");
     const st = wordleLoadState();
 
@@ -810,7 +1005,6 @@
 
   async function submitWordle() {
     if (!currentUser) return;
-
     const { played } = await alreadyPlayed("wordle5");
     if (played) { await loadWordleUI(); return; }
 
@@ -819,7 +1013,7 @@
 
     const raw = ($("wordle-input").value || "").trim().toUpperCase();
     if (!/^[A-Z]{5}$/.test(raw)) {
-      $("wordle-msg").textContent = "Please enter exactly 5 letters (A–Z).";
+      $("wordle-msg").textContent = "Please enter exactly 5 letters.";
       return;
     }
 
@@ -857,7 +1051,7 @@
     $("wordle-msg").textContent = `Try again (${6 - st.guesses.length} tries left).`;
   }
 
-  // --- Riddle ---
+  // RIDDLE
   const RIDDLES = [
     { q: "I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?", a: "echo" },
     { q: "What has to be broken before you can use it?", a: "egg" },
@@ -880,6 +1074,7 @@
   function riddleLoadState() {
     return JSON.parse(localStorage.getItem(riddleKey()) || "null") || { done: false };
   }
+
   function riddleSaveState(st) {
     localStorage.setItem(riddleKey(), JSON.stringify(st));
   }
@@ -911,10 +1106,7 @@
   }
 
   function normalizeAnswer(s) {
-    return (s || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9 ]/g, "")
-      .trim();
+    return (s || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
   }
 
   async function submitRiddle() {
@@ -946,7 +1138,7 @@
     await loadRiddleUI();
   }
 
-  // --- Memory Match ---
+  // MEMORY MATCH
   const EMOJIS = ["🍎","🍌","🍓","🍇","🍍","🥝","🍉","🍑","🥕","🥦","🍋","🍒","🍔","🍕","🌮","🍪"];
 
   function mmKey() {
@@ -1076,7 +1268,6 @@
       if (allMatched) {
         st.done = true;
         mmSaveState(st);
-
         await logMindgameResult("memorymatch", true, 15);
         toast("+15 points — Memory Match complete!");
         $("mm-msg").textContent = "✅ Completed!";
@@ -1161,24 +1352,16 @@
   }
 
   // ----------------------------
-  // DELETE PROFILE DATA
+  // DELETE PROFILE
   // ----------------------------
   async function deleteMyProfileData() {
     $("del-msg").textContent = "";
-
     const sure = prompt('Type DELETE to confirm you want to delete your profile data:');
-    if (sure !== "DELETE") {
-      $("del-msg").textContent = "Cancelled.";
-      return;
-    }
-    if (!confirm("Final confirmation: delete your data now?")) {
-      $("del-msg").textContent = "Cancelled.";
-      return;
-    }
+    if (sure !== "DELETE") { $("del-msg").textContent = "Cancelled."; return; }
+    if (!confirm("Final confirmation: delete your data now?")) { $("del-msg").textContent = "Cancelled."; return; }
 
     try {
       toast("Deleting your data...");
-      // Attempt to delete avatar files too (best effort)
       try {
         const uid = currentUser.id;
         const { data: listed } = await sb.storage.from("avatars").list(uid, { limit: 100 });
@@ -1221,6 +1404,7 @@
     setText("hdr-points", pts);
 
     await loadAchievementList(currentUser.id);
+    await loadPlayerHabits();
     await refreshHabitButtonStates();
     await refreshLeaguesList();
     await refreshFriends();
@@ -1229,7 +1413,7 @@
   }
 
   // ----------------------------
-  // EVENT WIRING
+  // EVENTS
   // ----------------------------
   $("su-pass-eye")?.addEventListener("click", () => toggleEye("su-pass"));
   $("li-pass-eye")?.addEventListener("click", () => toggleEye("li-pass"));
@@ -1299,7 +1483,7 @@
   $("btn-join-league").addEventListener("click", joinLeague);
 
   $("btn-notifs").addEventListener("click", async () => { openNotifModal(); await loadNotifications(); });
-  $("btn-close-notif").addEventListener("click", () => closeNotifModal());
+  $("btn-close-notif").addEventListener("click", closeNotifModal);
 
   $("btn-send-friend").addEventListener("click", sendFriendRequest);
 
@@ -1333,6 +1517,20 @@
 
   $("btn-delete-profile").addEventListener("click", deleteMyProfileData);
 
+  $("btn-open-habit-setup").addEventListener("click", () => {
+    $("habit-setup-modal").classList.remove("hidden");
+    $("habit-setup-msg").textContent = "";
+  });
+
+  $("btn-setup-add-custom").addEventListener("click", async () => {
+    const name = $("setup-custom-name").value.trim();
+    const points = Number($("setup-custom-points").value || 5);
+    if (!name) { $("habit-setup-msg").textContent = "Enter a custom habit name."; return; }
+    await addCustomHabit(name, points);
+  });
+
+  $("btn-save-habit-setup").addEventListener("click", saveHabitSelections);
+
   // ----------------------------
   // AFTER LOGIN
   // ----------------------------
@@ -1349,18 +1547,16 @@
     }
 
     setText("whoami", `${currentProfile.name}`);
-
-    // Set header avatar
-    const defaultAvatar = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='100%25' height='100%25' fill='%231f2937'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='56'>👤</text></svg>";
-    const avatarUrl = currentProfile.avatar_url || defaultAvatar;
-    $("hdr-avatar").src = avatarUrl;
-
-    // Profile view
     setText("profile-name", currentProfile.name);
     setText("profile-email", currentProfile.email);
     setText("friend-code", currentProfile.friend_code || "—");
+
+    const defaultAvatar = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='100%25' height='100%25' fill='%231f2937'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='56'>👤</text></svg>";
+    const avatarUrl = currentProfile.avatar_url || defaultAvatar;
+    $("hdr-avatar").src = avatarUrl;
     $("avatar-img").src = avatarUrl;
 
+    await seedDefaultsIfNeeded();
     await refreshAll();
   }
 
@@ -1382,5 +1578,4 @@
     await afterLogin();
     setMindTab("guess");
   })();
-
 })();
