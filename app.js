@@ -72,6 +72,7 @@
   };
 
   const authBox = $("auth-box");
+  const authWrap = $("auth-wrap");
   const appShell = $("app-shell");
   const authMsg = $("auth-msg");
 
@@ -83,12 +84,14 @@
 
   function showAuth(msg) {
     appShell?.classList.add("hidden");
+    authWrap?.classList.remove("hidden");
     authBox?.classList.remove("hidden");
     if (authMsg) authMsg.textContent = msg || "";
     applyDashboardBackground(null);
   }
 
   function showApp() {
+    authWrap?.classList.add("hidden");
     authBox?.classList.add("hidden");
     appShell?.classList.remove("hidden");
   }
@@ -135,7 +138,7 @@
   async function ensurePlayer(user, fallbackName) {
     const { data: existing, error: e1 } = await sb
       .from("players")
-      .select("user_id,email,name,avatar_url,friend_code,dashboard_bg_url")
+      .select("user_id,email,name,avatar_url,friend_code,dashboard_bg_url,bio")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -147,7 +150,8 @@
       email: user.email,
       name: fallbackName || user.user_metadata?.name || "Player",
       avatar_url: null,
-      dashboard_bg_url: null
+      dashboard_bg_url: null,
+      bio: null
     };
 
     const { data: inserted, error: e2 } = await sb
@@ -158,6 +162,63 @@
 
     if (e2) throw e2;
     return inserted;
+  }
+
+  async function refreshProfileRow() {
+    if (!currentUser) return;
+    const { data, error } = await sb
+      .from("players")
+      .select("user_id,email,name,avatar_url,friend_code,dashboard_bg_url,bio")
+      .eq("user_id", currentUser.id)
+      .single();
+
+    if (error) throw error;
+    currentProfile = data;
+    renderProfileHeader();
+  }
+
+  function renderProfileHeader() {
+    if (!currentProfile) return;
+
+    setText("whoami", currentProfile.name || "Player");
+    setText("whoami-bio", currentProfile.bio || "");
+    setText("profile-name", currentProfile.name || "Player");
+    setText("profile-email", currentProfile.email || "");
+    setText("profile-bio-display", currentProfile.bio || "");
+    setText("friend-code", currentProfile.friend_code || "—");
+
+    if ($("bio-input")) $("bio-input").value = currentProfile.bio || "";
+
+    const defaultAvatar = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='100%25' height='100%25' fill='%231f2937'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='56'>👤</text></svg>";
+    const avatarUrl = currentProfile.avatar_url || defaultAvatar;
+    if ($("hdr-avatar")) $("hdr-avatar").src = avatarUrl;
+    if ($("avatar-img")) $("avatar-img").src = avatarUrl;
+
+    applyDashboardBackground(currentProfile.dashboard_bg_url || null);
+
+    const inviteLink = `${window.location.origin}${window.location.pathname}?friend=${encodeURIComponent(currentProfile.friend_code || "")}`;
+    if ($("friend-invite-link")) $("friend-invite-link").value = inviteLink;
+  }
+
+  async function saveBio() {
+    if (!currentUser) return;
+    const bio = ($("bio-input")?.value || "").trim();
+
+    const { error } = await sb
+      .from("players")
+      .update({ bio })
+      .eq("user_id", currentUser.id);
+
+    if (error) {
+      console.error(error);
+      setText("bio-msg", `Bio save error: ${error.message}`);
+      return;
+    }
+
+    if (currentProfile) currentProfile.bio = bio;
+    renderProfileHeader();
+    setText("bio-msg", "Bio updated!");
+    toast("Bio updated!");
   }
 
   async function computeStreak(userId) {
@@ -664,7 +725,7 @@
 
     if (error) {
       console.warn(error);
-      board.innerHTML = `<div class="text-slate-300 text-sm">Leaderboard not available (check view/RLS).</div>`;
+      board.innerHTML = `<div class="text-slate-300 text-sm">Leaderboard not available.</div>`;
       return;
     }
 
@@ -720,12 +781,19 @@
       return;
     }
 
-    const leagueId = data?.id || data?.league_id;
-    if (leagueId) {
-      await sb.rpc("seed_league_default_habits", { p_league_id: leagueId });
+    if (data?.ok === false) {
+      setText("create-league-msg", `Create league error: ${data.message}`);
+      return;
     }
 
-    const code = data?.code || data?.invite_code || data?.join_code || "";
+    const leagueId = data?.id || data?.league_id;
+    if (leagueId) {
+      try {
+        await sb.rpc("seed_league_default_habits", { p_league_id: leagueId });
+      } catch (_) {}
+    }
+
+    const code = data?.code || "";
     setText("create-league-msg", code ? `League created! Invite code: ${code}` : "League created!");
     toast("League created!");
     await refreshLeaguesList();
@@ -739,10 +807,15 @@
       return;
     }
 
-    const { error } = await sb.rpc("join_league", { join_code: code });
+    const { data, error } = await sb.rpc("join_league", { join_code: code });
     if (error) {
       console.error(error);
       setText("join-league-msg", `Join error: ${error.message}`);
+      return;
+    }
+
+    if (data?.ok === false) {
+      setText("join-league-msg", `Join error: ${data.message}`);
       return;
     }
 
@@ -913,13 +986,19 @@
 
     for (const f of data) {
       const row = document.createElement("div");
-      row.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-3 flex items-center gap-3";
+      row.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-3 flex items-start gap-3";
 
       const avatar = f.friend_avatar_url
         ? `<img src="${f.friend_avatar_url}" class="w-10 h-10 rounded-xl object-cover border border-slate-700 bg-slate-800" />`
         : `<div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center">👤</div>`;
 
-      row.innerHTML = `${avatar}<div class="font-extrabold">${f.friend_name || "Friend"}</div>`;
+      row.innerHTML = `
+        ${avatar}
+        <div>
+          <div class="font-extrabold">${f.friend_name || "Friend"}</div>
+          <div class="text-slate-300 text-sm">${f.friend_bio || ""}</div>
+        </div>
+      `;
       box.appendChild(row);
     }
   }
@@ -1499,7 +1578,14 @@
   }
 
   async function handleRecoveryLinkIfPresent() {
-    const code = new URLSearchParams(window.location.search).get("code");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const friendCode = params.get("friend");
+
+    if (friendCode && $("friend-code-input")) {
+      $("friend-code-input").value = friendCode.toUpperCase();
+    }
+
     if (!code) return;
 
     showResetBox(true);
@@ -1598,6 +1684,7 @@
     setText("hdr-ach", ach);
     setText("hdr-points", pts);
 
+    await refreshProfileRow();
     await loadAchievementList(currentUser.id);
     await loadPlayerHabits();
     await refreshHabitButtonStates();
@@ -1696,6 +1783,20 @@
 
   $("btn-send-friend")?.addEventListener("click", sendFriendRequest);
 
+  $("btn-copy-invite-link")?.addEventListener("click", async () => {
+    const link = $("friend-invite-link")?.value || "";
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setText("invite-msg", "Invite link copied!");
+      toast("Invite link copied!");
+    } catch {
+      setText("invite-msg", "Could not copy invite link.");
+    }
+  });
+
+  $("btn-save-bio")?.addEventListener("click", saveBio);
+
   $("btn-mg-try")?.addEventListener("click", tryGuess);
   $("btn-wordle")?.addEventListener("click", submitWordle);
   $("btn-riddle")?.addEventListener("click", submitRiddle);
@@ -1714,8 +1815,7 @@
       toast("Uploading photo…");
       const url = await uploadAvatar(file);
       if (currentProfile) currentProfile.avatar_url = url;
-      if ($("avatar-img")) $("avatar-img").src = url;
-      if ($("hdr-avatar")) $("hdr-avatar").src = url;
+      renderProfileHeader();
       toast("Profile photo updated!");
     } catch (err) {
       console.error(err);
@@ -1743,10 +1843,8 @@
     try {
       toast("Uploading background…");
       const url = await uploadDashboardBackground(file);
-
       if (currentProfile) currentProfile.dashboard_bg_url = url;
       applyDashboardBackground(url);
-
       setText("bg-msg", "Background updated!");
       toast("Dashboard background updated!");
     } catch (err) {
@@ -1808,17 +1906,7 @@
       return;
     }
 
-    setText("whoami", currentProfile.name);
-    setText("profile-name", currentProfile.name);
-    setText("profile-email", currentProfile.email);
-    setText("friend-code", currentProfile.friend_code || "—");
-
-    const defaultAvatar = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='100%25' height='100%25' fill='%231f2937'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='56'>👤</text></svg>";
-    const avatarUrl = currentProfile.avatar_url || defaultAvatar;
-    if ($("hdr-avatar")) $("hdr-avatar").src = avatarUrl;
-    if ($("avatar-img")) $("avatar-img").src = avatarUrl;
-
-    applyDashboardBackground(currentProfile.dashboard_bg_url || null);
+    renderProfileHeader();
 
     await seedDefaultsIfNeeded();
     await loadPlayerHabits();
