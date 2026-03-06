@@ -19,7 +19,7 @@
 
 <body class="min-h-screen bg-slate-900 text-white p-6">
   <div class="max-w-6xl mx-auto">
-    <div class="mb-8">
+    <div class="mb-8 text-center">
       <h1 class="text-5xl font-extrabold mb-2 bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
         The Healthy Habits Challenge
       </h1>
@@ -27,64 +27,67 @@
       <p class="text-slate-400 mt-2">Build healthy habits. Compete with friends.</p>
     </div>
 
-    <!-- AUTH BOX -->
-    <div id="auth-box" class="glass rounded-2xl p-6 space-y-6 max-w-xl">
-      <div class="space-y-2">
-        <h2 class="text-2xl font-bold">Create account</h2>
-        <input id="su-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <div class="relative">
-          <input id="su-pass" type="password" placeholder="Password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-          <button id="su-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">👁</button>
-        </div>
-        <input id="su-name" type="text" placeholder="Display name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <button id="btn-signup" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
-          Sign up (we’ll email a verification link)
-        </button>
-        <p class="text-xs text-slate-400">After signup, verify your email, then come back and log in.</p>
-      </div>
-
-      <hr class="border-slate-700" />
-
-      <div class="space-y-2">
-        <h2 class="text-2xl font-bold">Log in</h2>
-        <input id="li-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <div class="relative">
-          <input id="li-pass" type="password" placeholder="Password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-          <button id="li-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">👁</button>
-        </div>
-
-        <button id="btn-login" class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
-          Log in
-        </button>
-
-        <button id="btn-forgot" class="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
-          Forgot password? Reset it
-        </button>
-      </div>
-
-      <div id="reset-box" class="hidden bg-slate-900/50 border border-slate-700 rounded-xl p-4 space-y-3">
-        <div class="font-extrabold text-lg">Reset Password</div>
-        <input id="reset-email" type="email" placeholder="Email for reset link" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-        <button id="btn-send-reset" class="w-full font-bold py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900">
-          Email me a reset link
-        </button>
-
-        <div id="newpass-box" class="hidden space-y-2">
-          <div class="text-slate-300 text-sm">Set a new password:</div>
+    <!-- AUTH BOX WRAPPER -->
+    <div id="auth-wrap" class="min-h-[70vh] flex items-center justify-center">
+      <!-- AUTH BOX -->
+      <div id="auth-box" class="glass rounded-2xl p-6 space-y-6 w-full max-w-xl">
+        <div class="space-y-2">
+          <h2 class="text-2xl font-bold">Create account</h2>
+          <input id="su-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
           <div class="relative">
-            <input id="new-pass" type="password" placeholder="New password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-            <button id="new-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">👁</button>
+            <input id="su-pass" type="password" placeholder="Password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+            <button id="su-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">👁</button>
           </div>
-          <input id="new-pass2" type="password" placeholder="Confirm new password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
-          <button id="btn-set-newpass" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
-            Update password
+          <input id="su-name" type="text" placeholder="Display name" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+          <button id="btn-signup" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+            Sign up (we’ll email a verification link)
+          </button>
+          <p class="text-xs text-slate-400">After signup, verify your email, then come back and log in.</p>
+        </div>
+
+        <hr class="border-slate-700" />
+
+        <div class="space-y-2">
+          <h2 class="text-2xl font-bold">Log in</h2>
+          <input id="li-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+          <div class="relative">
+            <input id="li-pass" type="password" placeholder="Password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+            <button id="li-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">👁</button>
+          </div>
+
+          <button id="btn-login" class="w-full font-bold py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900">
+            Log in
+          </button>
+
+          <button id="btn-forgot" class="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+            Forgot password? Reset it
           </button>
         </div>
 
-        <div id="reset-msg" class="text-sm text-slate-300"></div>
-      </div>
+        <div id="reset-box" class="hidden bg-slate-900/50 border border-slate-700 rounded-xl p-4 space-y-3">
+          <div class="font-extrabold text-lg">Reset Password</div>
+          <input id="reset-email" type="email" placeholder="Email for reset link" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+          <button id="btn-send-reset" class="w-full font-bold py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900">
+            Email me a reset link
+          </button>
 
-      <div id="auth-msg" class="text-sm text-slate-300"></div>
+          <div id="newpass-box" class="hidden space-y-2">
+            <div class="text-slate-300 text-sm">Set a new password:</div>
+            <div class="relative">
+              <input id="new-pass" type="password" placeholder="New password" class="w-full pr-12 px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+              <button id="new-pass-eye" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">👁</button>
+            </div>
+            <input id="new-pass2" type="password" placeholder="Confirm new password" class="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700" />
+            <button id="btn-set-newpass" class="w-full font-bold py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+              Update password
+            </button>
+          </div>
+
+          <div id="reset-msg" class="text-sm text-slate-300"></div>
+        </div>
+
+        <div id="auth-msg" class="text-sm text-slate-300"></div>
+      </div>
     </div>
 
     <!-- HABIT SETUP MODAL -->
