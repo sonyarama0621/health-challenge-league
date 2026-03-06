@@ -60,6 +60,15 @@
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${cleanExt}`;
   }
 
+  function tierFromPoints(points) {
+    const p = Number(points || 0);
+    if (p >= 300) return { name: "Diamond", emoji: "💎", next: null, color: "text-cyan-300" };
+    if (p >= 200) return { name: "Platinum", emoji: "🩵", next: 300, color: "text-sky-300" };
+    if (p >= 120) return { name: "Gold", emoji: "🥇", next: 200, color: "text-amber-300" };
+    if (p >= 60) return { name: "Silver", emoji: "🥈", next: 120, color: "text-slate-200" };
+    return { name: "Bronze", emoji: "🥉", next: 60, color: "text-orange-300" };
+  }
+
   const BUILTIN_HABITS = {
     water: { name: "Water", points: 5, color: "bg-sky-600 hover:bg-sky-500" },
     protein: { name: "Protein", points: 8, color: "bg-red-600 hover:bg-red-500" },
@@ -116,7 +125,6 @@
   let playerHabits = [];
   let activeMindGame = "guess";
 
-  let leagueSettingsHabitDraft = [];
   let leagueSettingsCustomDraft = [];
   let leagueSettingsImageUrl = null;
 
@@ -756,6 +764,7 @@
 
     await refreshLeagueHabitsView();
     await refreshLeagueBoard();
+    await refreshLeagueTierCard();
   }
 
   async function refreshLeagueHabitsView() {
@@ -793,6 +802,35 @@
     }
   }
 
+  async function refreshLeagueTierCard() {
+    if (!selectedLeague || !currentUser) return;
+    const box = $("league-tier-card");
+    if (!box) return;
+
+    const { data, error } = await sb
+      .from("league_leaderboard")
+      .select("user_id,points")
+      .eq("league_id", selectedLeague.id)
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      box.innerHTML = `<div class="text-slate-300 text-sm">Join this league to see your tier.</div>`;
+      return;
+    }
+
+    const tier = tierFromPoints(data.points || 0);
+    const nextText = tier.next ? `${Math.max(0, tier.next - Number(data.points || 0))} points to next tier` : `Top tier reached`;
+    box.innerHTML = `
+      <div class="bg-slate-900/50 border border-slate-700 rounded-2xl p-4">
+        <div class="text-slate-400 text-sm">Your current league tier</div>
+        <div class="mt-2 text-3xl font-extrabold ${tier.color}">${tier.emoji} ${tier.name}</div>
+        <div class="mt-2 text-slate-300 text-sm">${Number(data.points || 0)} points</div>
+        <div class="mt-2 text-slate-400 text-sm">${nextText}</div>
+      </div>
+    `;
+  }
+
   async function refreshLeagueBoard() {
     if (!selectedLeague) return;
 
@@ -821,19 +859,22 @@
 
     let rank = 1;
     for (const r of data) {
+      const tier = tierFromPoints(r.points || 0);
+
       const card = document.createElement("div");
       card.className = "rounded-2xl p-4 bg-slate-900/40 border border-slate-700 flex items-center justify-between gap-4";
 
       const avatar = r.avatar_url
-        ? `<img src="${r.avatar_url}" class="w-12 h-12 rounded-xl object-cover border border-slate-700 bg-slate-800" />`
-        : `<div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center">👤</div>`;
+        ? `<img src="${r.avatar_url}" class="w-16 h-16 rounded-2xl object-cover border border-slate-700 bg-slate-800" />`
+        : `<div class="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl">👤</div>`;
 
       card.innerHTML = `
         <div class="flex items-center gap-4 min-w-0">
-          <div class="text-slate-300 w-8 text-center font-extrabold">${rank}</div>
+          <div class="text-slate-300 w-8 text-center font-extrabold text-lg">${rank}</div>
           ${avatar}
           <div class="min-w-0">
             <div class="font-extrabold text-lg truncate">${r.name || "Player"}</div>
+            <div class="text-slate-300 text-sm">${tier.emoji} ${tier.name}</div>
           </div>
         </div>
         <div class="text-right">
@@ -1020,6 +1061,7 @@
 
     setText("league-settings-msg", "League saved!");
     toast("League settings saved!");
+    closeLeagueSettingsModal();
     await refreshLeaguesList();
     await loadLeaguePage(selectedLeague);
   }
@@ -1096,7 +1138,7 @@
     if (!selectedLeague) return;
     if (!confirm(`Delete "${selectedLeague.name}"? This cannot be undone.`)) return;
 
-    const { data, error } = await sb.rpc("delete_league", { league_id: selectedLeague.id });
+    const { data, error } = await sb.rpc("delete_league", { p_league_id: selectedLeague.id });
 
     if (error) {
       console.error(error);
@@ -2044,6 +2086,7 @@
   $("btn-league-refresh")?.addEventListener("click", async () => {
     await refreshLeagueHabitsView();
     await refreshLeagueBoard();
+    await refreshLeagueTierCard();
   });
   $("btn-league-delete")?.addEventListener("click", deleteLeague);
   $("btn-league-settings")?.addEventListener("click", openLeagueSettingsModal);
