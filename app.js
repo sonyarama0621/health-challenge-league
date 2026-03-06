@@ -80,6 +80,7 @@
     appShell?.classList.add("hidden");
     authBox?.classList.remove("hidden");
     if (authMsg) authMsg.textContent = msg || "";
+    applyDashboardBackground(null);
   }
 
   function showApp() {
@@ -107,10 +108,29 @@
   let playerHabits = [];
   let activeMindGame = "guess";
 
+  function applyDashboardBackground(url) {
+    const body = document.body;
+    if (!body) return;
+
+    if (url) {
+      body.style.backgroundImage = `linear-gradient(rgba(2,6,23,0.72), rgba(2,6,23,0.82)), url("${url}")`;
+      body.style.backgroundSize = "cover";
+      body.style.backgroundPosition = "center";
+      body.style.backgroundAttachment = "fixed";
+      body.style.backgroundRepeat = "no-repeat";
+    } else {
+      body.style.backgroundImage = "";
+      body.style.backgroundSize = "";
+      body.style.backgroundPosition = "";
+      body.style.backgroundAttachment = "";
+      body.style.backgroundRepeat = "";
+    }
+  }
+
   async function ensurePlayer(user, fallbackName) {
     const { data: existing, error: e1 } = await sb
       .from("players")
-      .select("user_id,email,name,avatar_url,friend_code")
+      .select("user_id,email,name,avatar_url,friend_code,dashboard_bg_url")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -121,7 +141,8 @@
       user_id: user.id,
       email: user.email,
       name: fallbackName || user.user_metadata?.name || "Player",
-      avatar_url: null
+      avatar_url: null,
+      dashboard_bg_url: null
     };
 
     const { data: inserted, error: e2 } = await sb
@@ -411,6 +432,66 @@
     await refreshHabitButtonStates();
     toast("Your habits were saved.");
     setTimeout(() => $("habit-setup-modal")?.classList.add("hidden"), 600);
+  }
+
+  // ----------------------------
+  // BACKGROUND IMAGE
+  // ----------------------------
+  async function uploadDashboardBackground(file) {
+    if (!currentUser) return null;
+
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${currentUser.id}/dashboard-bg.${ext}`;
+
+    const { error: upErr } = await sb.storage
+      .from("dashboard-backgrounds")
+      .upload(path, file, {
+        upsert: true,
+        contentType: file.type
+      });
+
+    if (upErr) throw upErr;
+
+    const { data: pub } = sb.storage.from("dashboard-backgrounds").getPublicUrl(path);
+    const url = pub?.publicUrl || null;
+
+    const { error: updErr } = await sb
+      .from("players")
+      .update({ dashboard_bg_url: url })
+      .eq("user_id", currentUser.id);
+
+    if (updErr) throw updErr;
+
+    return url;
+  }
+
+  async function removeDashboardBackground() {
+    if (!currentUser) return;
+
+    try {
+      const uid = currentUser.id;
+      const { data: listed } = await sb.storage.from("dashboard-backgrounds").list(uid, { limit: 100 });
+      const paths = (listed || []).map(x => `${uid}/${x.name}`);
+      if (paths.length > 0) {
+        await sb.storage.from("dashboard-backgrounds").remove(paths);
+      }
+
+      const { error } = await sb
+        .from("players")
+        .update({ dashboard_bg_url: null })
+        .eq("user_id", currentUser.id);
+
+      if (error) throw error;
+
+      if (currentProfile) currentProfile.dashboard_bg_url = null;
+      applyDashboardBackground(null);
+      setText("bg-msg", "Background removed.");
+      toast("Background removed.");
+    } catch (e) {
+      console.error(e);
+      setText("bg-msg", `Background remove error: ${e.message || e}`);
+      toast("Could not remove background.");
+    }
   }
 
   // ----------------------------
@@ -918,7 +999,6 @@
 
   async function loadGuessUI() {
     if (!currentUser) return;
-
     const { played, row } = await alreadyPlayed("guess10");
     const { key, state } = await mindgameStateGuess();
     const msg = $("mg-msg");
@@ -954,7 +1034,6 @@
 
   async function tryGuess() {
     if (!currentUser) return;
-
     const { played } = await alreadyPlayed("guess10");
     if (played) {
       await loadGuessUI();
@@ -1057,7 +1136,6 @@
 
   async function loadWordleUI() {
     if (!currentUser) return;
-
     const msg = $("wordle-msg");
     const done = $("wordle-done");
     const btn = $("btn-wordle");
@@ -1085,7 +1163,6 @@
 
   async function submitWordle() {
     if (!currentUser) return;
-
     const { played } = await alreadyPlayed("wordle5");
     if (played) {
       await loadWordleUI();
@@ -1665,6 +1742,39 @@
     }
   });
 
+  $("bg-file")?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    setText("bg-msg", "");
+    if (!file) return;
+
+    const MAX_MB = 5;
+    const maxBytes = MAX_MB * 1024 * 1024;
+
+    if (file.size > maxBytes) {
+      setText("bg-msg", "File is too large. Maximum size is 5 MB.");
+      toast("Background image must be 5 MB or smaller.");
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      toast("Uploading background…");
+      const url = await uploadDashboardBackground(file);
+      if (currentProfile) currentProfile.dashboard_bg_url = url;
+      applyDashboardBackground(url);
+      setText("bg-msg", "Background updated!");
+      toast("Dashboard background updated!");
+    } catch (err) {
+      console.error(err);
+      setText("bg-msg", `Background upload error: ${err.message || err}`);
+      toast("Could not upload background.");
+    } finally {
+      e.target.value = "";
+    }
+  });
+
+  $("btn-remove-bg")?.addEventListener("click", removeDashboardBackground);
+
   $("btn-delete-profile")?.addEventListener("click", deleteMyProfileData);
 
   $("btn-open-habit-setup")?.addEventListener("click", () => {
@@ -1725,6 +1835,8 @@
     const avatarUrl = currentProfile.avatar_url || defaultAvatar;
     if ($("hdr-avatar")) $("hdr-avatar").src = avatarUrl;
     if ($("avatar-img")) $("avatar-img").src = avatarUrl;
+
+    applyDashboardBackground(currentProfile.dashboard_bg_url || null);
 
     await seedDefaultsIfNeeded();
     await loadPlayerHabits();
