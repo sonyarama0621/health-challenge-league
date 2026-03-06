@@ -308,37 +308,26 @@
     }
 
     for (const h of playerHabits) {
-      if (h.habit_key === "steps") {
-        const cardBtn = document.createElement("button");
-        cardBtn.className = "md:col-span-2 w-full font-bold py-4 rounded-xl bg-blue-700 hover:bg-blue-600";
-        cardBtn.id = "btn-open-steps-modal";
-        cardBtn.textContent = "Log Steps";
-        cardBtn.addEventListener("click", () => {
-          $("steps-modal")?.classList.remove("hidden");
-          updateStepsUI();
-        });
-
-        const wrapper = document.createElement("div");
-        wrapper.className = "md:col-span-2 bg-slate-900/50 border border-slate-700 rounded-xl p-4";
-        wrapper.innerHTML = `
-          <div class="font-extrabold text-lg">Steps</div>
-          <div class="text-slate-300 text-sm mt-1">Click to open the step slider. 1K = 1 point, 10K+ = 10 points.</div>
-        `;
-        wrapper.appendChild(cardBtn);
-        box.appendChild(wrapper);
-        continue;
-      }
-
       const meta = BUILTIN_HABITS[h.habit_key] || {};
       const color = meta.color || "bg-slate-700 hover:bg-slate-600";
 
       const btn = document.createElement("button");
       btn.className = `habit-btn w-full font-bold py-4 rounded-xl ${color}`;
-      btn.id = `habit-${h.habit_key}`;
-      btn.textContent = `Log ${h.habit_name} (+${h.points})`;
-      btn.addEventListener("click", async () => {
-        await logHabit(h.habit_key, h.habit_name, h.points);
-      });
+      btn.id = h.habit_key === "steps" ? "btn-open-steps-modal" : `habit-${h.habit_key}`;
+
+      if (h.habit_key === "steps") {
+        btn.textContent = "Log Steps";
+        btn.addEventListener("click", () => {
+          $("steps-modal")?.classList.remove("hidden");
+          updateStepsUI();
+        });
+      } else {
+        btn.textContent = `Log ${h.habit_name} (+${h.points})`;
+        btn.addEventListener("click", async () => {
+          await logHabit(h.habit_key, h.habit_name, h.points);
+        });
+      }
+
       box.appendChild(btn);
     }
   }
@@ -927,24 +916,15 @@
     if (error) console.error(error);
   }
 
-  // GUESS
-  async function mindgameStateGuess() {
-    const today = todayKeyLocal();
-    const key = `mg_guess10_${today}_${currentUser?.id || ""}`;
-    const state = JSON.parse(localStorage.getItem(key) || "null") || { tries: 0, done: false };
-    return { key, today, state };
-  }
-
   async function loadGuessUI() {
     if (!currentUser) return;
 
     const { played, row } = await alreadyPlayed("guess10");
+    const { key, state } = await mindgameStateGuess();
     const msg = $("mg-msg");
     const doneBox = $("mg-done");
     const left = $("mg-left");
     const btn = $("btn-mg-try");
-    const { key, state } = await mindgameStateGuess();
-
     if (!msg || !doneBox || !left || !btn) return;
 
     if (played || state.done) {
@@ -963,6 +943,13 @@
     left.textContent = String(3 - state.tries);
     msg.textContent = "";
     localStorage.setItem(key, JSON.stringify(state));
+  }
+
+  async function mindgameStateGuess() {
+    const today = todayKeyLocal();
+    const key = `mg_guess10_${today}_${currentUser?.id || ""}`;
+    const state = JSON.parse(localStorage.getItem(key) || "null") || { tries: 0, done: false };
+    return { key, today, state };
   }
 
   async function tryGuess() {
@@ -1010,7 +997,6 @@
     localStorage.setItem(key, JSON.stringify(state));
   }
 
-  // WORDLE
   const WORDS = [
     "HEART","SLEEP","WATER","POWER","TRAIN","HABIT","SMILE","FOCUS","BRAVE","BOOST",
     "APPLE","GRAPE","ALARM","MIGHT","PLANT","GLOWS","NURSE","CLEAN","SWEAT","PEACE"
@@ -1152,7 +1138,6 @@
     setText("wordle-msg", `Try again (${6 - st.guesses.length} tries left).`);
   }
 
-  // RIDDLE
   const RIDDLES = [
     { q: "I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?", a: "echo" },
     { q: "What has to be broken before you can use it?", a: "egg" },
@@ -1249,7 +1234,6 @@
     await loadRiddleUI();
   }
 
-  // MEMORY MATCH
   const EMOJIS = ["🍎","🍌","🍓","🍇","🍍","🥝","🍉","🍑","🥕","🥦","🍋","🍒","🍔","🍕","🌮","🍪"];
 
   function mmKey() {
