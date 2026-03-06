@@ -2,7 +2,9 @@
   const SUPABASE_URL = "https://onndovdpdaccsavbkykm.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ubmRvdmRwZGFjY3NhdmJreWttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NjI2NTksImV4cCI6MjA4ODEzODY1OX0.7dnpa5q34PbW34tF1U83NRJGWRyR70twlDNxgXMOoeE";
 
-  if (!window.supabase?.createClient) throw new Error("Supabase library not loaded");
+  if (!window.supabase?.createClient) {
+    throw new Error("Supabase library not loaded");
+  }
 
   let sb = window.__sb_client;
   if (!sb) {
@@ -14,6 +16,7 @@
   const toastEl = $("toast");
 
   function toast(msg, ms = 2600) {
+    if (!toastEl) return;
     toastEl.textContent = msg;
     toastEl.classList.remove("hidden");
     clearTimeout(toastEl.__t);
@@ -74,29 +77,29 @@
   const viewMindgame = $("view-mindgame");
 
   function showAuth(msg) {
-    appShell.classList.add("hidden");
-    authBox.classList.remove("hidden");
-    authMsg.textContent = msg || "";
+    appShell?.classList.add("hidden");
+    authBox?.classList.remove("hidden");
+    if (authMsg) authMsg.textContent = msg || "";
   }
 
   function showApp() {
-    authBox.classList.add("hidden");
-    appShell.classList.remove("hidden");
+    authBox?.classList.add("hidden");
+    appShell?.classList.remove("hidden");
   }
 
   function hideAllViews() {
-    viewDash.classList.add("hidden");
-    viewLeague.classList.add("hidden");
-    viewProfile.classList.add("hidden");
-    viewFriends.classList.add("hidden");
-    viewMindgame.classList.add("hidden");
+    viewDash?.classList.add("hidden");
+    viewLeague?.classList.add("hidden");
+    viewProfile?.classList.add("hidden");
+    viewFriends?.classList.add("hidden");
+    viewMindgame?.classList.add("hidden");
   }
 
-  function goDashboard() { hideAllViews(); viewDash.classList.remove("hidden"); }
-  function goProfile() { hideAllViews(); viewProfile.classList.remove("hidden"); }
-  function goFriends() { hideAllViews(); viewFriends.classList.remove("hidden"); }
-  function goMindgame() { hideAllViews(); viewMindgame.classList.remove("hidden"); }
-  function goLeagueView() { hideAllViews(); viewLeague.classList.remove("hidden"); }
+  function goDashboard() { hideAllViews(); viewDash?.classList.remove("hidden"); }
+  function goProfile() { hideAllViews(); viewProfile?.classList.remove("hidden"); }
+  function goFriends() { hideAllViews(); viewFriends?.classList.remove("hidden"); }
+  function goMindgame() { hideAllViews(); viewMindgame?.classList.remove("hidden"); }
+  function goLeagueView() { hideAllViews(); viewLeague?.classList.remove("hidden"); }
 
   let currentUser = null;
   let currentProfile = null;
@@ -110,6 +113,7 @@
       .select("user_id,email,name,avatar_url,friend_code")
       .eq("user_id", user.id)
       .maybeSingle();
+
     if (e1) throw e1;
     if (existing) return existing;
 
@@ -125,6 +129,7 @@
       .insert(row)
       .select()
       .single();
+
     if (e2) throw e2;
     return inserted;
   }
@@ -136,12 +141,14 @@
       .eq("user_id", userId)
       .order("log_date", { ascending: false })
       .limit(180);
+
     if (error) throw error;
 
     const uniqueDays = [];
     const seen = new Set();
+
     for (const r of (data || [])) {
-      const day = (typeof r.log_date === "string")
+      const day = typeof r.log_date === "string"
         ? r.log_date.slice(0, 10)
         : new Date(r.log_date).toISOString().slice(0, 10);
 
@@ -152,6 +159,7 @@
     }
 
     if (uniqueDays.length === 0) return 0;
+
     const today = todayKeyLocal();
     if (uniqueDays[0] !== today) return 0;
 
@@ -171,6 +179,7 @@
       .from("user_achievements")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
+
     if (error) throw error;
     return count || 0;
   }
@@ -180,6 +189,7 @@
       .from("habit_logs")
       .select("points")
       .eq("user_id", userId);
+
     if (e1) throw e1;
 
     const { data: m, error: e2 } = await sb
@@ -199,10 +209,13 @@
       .eq("user_id", userId)
       .order("earned_at", { ascending: false })
       .limit(60);
+
     if (error) throw error;
 
     const box = $("ach-list");
+    if (!box) return;
     box.innerHTML = "";
+
     if (!data || data.length === 0) {
       box.innerHTML = `<div class="text-slate-300 text-sm">No achievements yet — start logging habits!</div>`;
       return;
@@ -211,6 +224,7 @@
     for (const row of data) {
       const a = row.achievements;
       if (!a) continue;
+
       const el = document.createElement("div");
       el.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-3 flex items-start gap-3";
       el.innerHTML = `
@@ -238,8 +252,7 @@
 
     if (!data || data.length === 0) {
       await sb.rpc("seed_default_player_habits");
-      $("habit-setup-modal").classList.remove("hidden");
-      await loadPlayerHabits();
+      $("habit-setup-modal")?.classList.remove("hidden");
     }
   }
 
@@ -252,6 +265,7 @@
       .order("sort_order", { ascending: true });
 
     if (error) throw error;
+
     playerHabits = data || [];
     renderHabitCards();
     renderProfileHabits();
@@ -260,6 +274,7 @@
 
   function renderProfileHabits() {
     const box = $("profile-habits-list");
+    if (!box) return;
     box.innerHTML = "";
 
     if (!playerHabits.length) {
@@ -284,6 +299,7 @@
 
   function renderHabitCards() {
     const box = $("habit-cards");
+    if (!box) return;
     box.innerHTML = "";
 
     if (!playerHabits.length) {
@@ -293,12 +309,12 @@
 
     for (const h of playerHabits) {
       if (h.habit_key === "steps") {
-        const card = document.createElement("button");
-        card.className = "md:col-span-2 w-full font-bold py-4 rounded-xl bg-blue-700 hover:bg-blue-600";
-        card.id = "btn-open-steps-modal";
-        card.textContent = "Log Steps";
-        card.addEventListener("click", () => {
-          $("steps-modal").classList.remove("hidden");
+        const cardBtn = document.createElement("button");
+        cardBtn.className = "md:col-span-2 w-full font-bold py-4 rounded-xl bg-blue-700 hover:bg-blue-600";
+        cardBtn.id = "btn-open-steps-modal";
+        cardBtn.textContent = "Log Steps";
+        cardBtn.addEventListener("click", () => {
+          $("steps-modal")?.classList.remove("hidden");
           updateStepsUI();
         });
 
@@ -308,13 +324,14 @@
           <div class="font-extrabold text-lg">Steps</div>
           <div class="text-slate-300 text-sm mt-1">Click to open the step slider. 1K = 1 point, 10K+ = 10 points.</div>
         `;
-        wrapper.appendChild(card);
+        wrapper.appendChild(cardBtn);
         box.appendChild(wrapper);
         continue;
       }
 
       const meta = BUILTIN_HABITS[h.habit_key] || {};
       const color = meta.color || "bg-slate-700 hover:bg-slate-600";
+
       const btn = document.createElement("button");
       btn.className = `habit-btn w-full font-bold py-4 rounded-xl ${color}`;
       btn.id = `habit-${h.habit_key}`;
@@ -328,6 +345,7 @@
 
   function renderSetupCustomList() {
     const box = $("setup-custom-list");
+    if (!box) return;
     box.innerHTML = "";
 
     const customs = playerHabits.filter(h => h.is_custom);
@@ -376,13 +394,13 @@
 
     if (error) {
       console.error(error);
-      $("habit-setup-msg").textContent = error.message;
+      setText("habit-setup-msg", error.message);
       return;
     }
 
-    $("habit-setup-msg").textContent = data?.message || "Custom habit added.";
-    $("setup-custom-name").value = "";
-    $("setup-custom-points").value = "5";
+    setText("habit-setup-msg", data?.message || "Custom habit added.");
+    if ($("setup-custom-name")) $("setup-custom-name").value = "";
+    if ($("setup-custom-points")) $("setup-custom-points").value = "5";
     await loadPlayerHabits();
   }
 
@@ -399,11 +417,11 @@
       if (error) console.error(error);
     }
 
-    $("habit-setup-msg").textContent = "Habits saved!";
+    setText("habit-setup-msg", "Habits saved!");
     await loadPlayerHabits();
     await refreshHabitButtonStates();
     toast("Your habits were saved.");
-    setTimeout(() => $("habit-setup-modal").classList.add("hidden"), 600);
+    setTimeout(() => $("habit-setup-modal")?.classList.add("hidden"), 600);
   }
 
   // ----------------------------
@@ -459,7 +477,11 @@
       .eq("log_date", today)
       .eq("habit_key", habitKey);
 
-    if (e1) { toast("Error checking today’s logs."); console.error(e1); return; }
+    if (e1) {
+      toast("Error checking today’s logs.");
+      console.error(e1);
+      return;
+    }
 
     if ((existing || []).length > 0) {
       toast(`You already logged ${label} today.`);
@@ -469,9 +491,18 @@
 
     const { error: e2 } = await sb
       .from("habit_logs")
-      .insert({ user_id: currentUser.id, habit_key: habitKey, points, log_date: today });
+      .insert({
+        user_id: currentUser.id,
+        habit_key: habitKey,
+        points,
+        log_date: today
+      });
 
-    if (e2) { toast("Error logging habit."); console.error(e2); return; }
+    if (e2) {
+      toast("Error logging habit.");
+      console.error(e2);
+      return;
+    }
 
     toast(`+${points} points — logged ${label}!`);
     await refreshAll();
@@ -483,14 +514,18 @@
   // LEAGUES
   // ----------------------------
   const leagueModal = $("league-modal");
+
   function openLeagueModal() {
-    $("create-league-msg").textContent = "";
-    $("join-league-msg").textContent = "";
-    $("create-league-name").value = "";
-    $("join-league-code").value = "";
-    leagueModal.classList.remove("hidden");
+    setText("create-league-msg", "");
+    setText("join-league-msg", "");
+    if ($("create-league-name")) $("create-league-name").value = "";
+    if ($("join-league-code")) $("join-league-code").value = "";
+    leagueModal?.classList.remove("hidden");
   }
-  function closeLeagueModal() { leagueModal.classList.add("hidden"); }
+
+  function closeLeagueModal() {
+    leagueModal?.classList.add("hidden");
+  }
 
   async function refreshLeaguesList() {
     if (!currentUser) return;
@@ -502,21 +537,23 @@
       .order("joined_at", { ascending: false });
 
     const list = $("leagues-list");
+    if (!list) return;
     list.innerHTML = "";
 
     if (error) {
       console.error(error);
-      $("leagues-empty").classList.remove("hidden");
+      $("leagues-empty")?.classList.remove("hidden");
       return;
     }
 
     const leagues = (data || []).map(r => r.leagues).filter(Boolean);
 
     if (leagues.length === 0) {
-      $("leagues-empty").classList.remove("hidden");
+      $("leagues-empty")?.classList.remove("hidden");
       return;
     }
-    $("leagues-empty").classList.add("hidden");
+
+    $("leagues-empty")?.classList.add("hidden");
 
     for (const lg of leagues) {
       const card = document.createElement("div");
@@ -544,8 +581,8 @@
     goLeagueView();
 
     const delBtn = $("btn-league-delete");
-    if (league.owner_id && currentUser && league.owner_id === currentUser.id) delBtn.classList.remove("hidden");
-    else delBtn.classList.add("hidden");
+    if (league.owner_id && currentUser && league.owner_id === currentUser.id) delBtn?.classList.remove("hidden");
+    else delBtn?.classList.add("hidden");
 
     await refreshLeagueBoard();
   }
@@ -554,6 +591,7 @@
     if (!selectedLeague) return;
 
     const board = $("league-board");
+    if (!board) return;
     board.innerHTML = `<div class="text-slate-300 text-sm">Loading…</div>`;
 
     const { data, error } = await sb
@@ -578,7 +616,7 @@
     let rank = 1;
     for (const r of data) {
       const card = document.createElement("div");
-      card.className = `rounded-2xl p-4 bg-slate-900/40 border border-slate-700 flex items-center justify-between gap-4`;
+      card.className = "rounded-2xl p-4 bg-slate-900/40 border border-slate-700 flex items-center justify-between gap-4";
 
       const avatar = r.avatar_url
         ? `<img src="${r.avatar_url}" class="w-12 h-12 rounded-xl object-cover border border-slate-700 bg-slate-800" />`
@@ -603,29 +641,49 @@
   }
 
   async function createLeague() {
-    $("create-league-msg").textContent = "";
-    const name = $("create-league-name").value.trim();
-    if (!name) { $("create-league-msg").textContent = "Please enter a league name."; return; }
+    setText("create-league-msg", "");
+    const name = $("create-league-name")?.value.trim();
+    if (!name) {
+      setText("create-league-msg", "Please enter a league name.");
+      return;
+    }
 
-    const { data, error } = await sb.rpc("create_league", { league_name: name, is_private: true });
-    if (error) { console.error(error); $("create-league-msg").textContent = `Create league error: ${error.message}`; return; }
+    const { data, error } = await sb.rpc("create_league", {
+      league_name: name,
+      is_private: true
+    });
+
+    if (error) {
+      console.error(error);
+      setText("create-league-msg", `Create league error: ${error.message}`);
+      return;
+    }
 
     const leagueId = data?.id || data?.league_id;
-    if (leagueId) await sb.rpc("seed_league_default_habits", { p_league_id: leagueId });
+    if (leagueId) {
+      await sb.rpc("seed_league_default_habits", { p_league_id: leagueId });
+    }
 
     const code = data?.code || data?.invite_code || data?.join_code || "";
-    $("create-league-msg").textContent = code ? `League created! Invite code: ${code}` : `League created!`;
+    setText("create-league-msg", code ? `League created! Invite code: ${code}` : "League created!");
     toast("League created!");
     await refreshLeaguesList();
   }
 
   async function joinLeague() {
-    $("join-league-msg").textContent = "";
-    const code = $("join-league-code").value.trim().toUpperCase();
-    if (!code) { $("join-league-msg").textContent = "Enter a league code."; return; }
+    setText("join-league-msg", "");
+    const code = $("join-league-code")?.value.trim().toUpperCase();
+    if (!code) {
+      setText("join-league-msg", "Enter a league code.");
+      return;
+    }
 
     const { error } = await sb.rpc("join_league", { join_code: code });
-    if (error) { console.error(error); $("join-league-msg").textContent = `Join error: ${error.message}`; return; }
+    if (error) {
+      console.error(error);
+      setText("join-league-msg", `Join error: ${error.message}`);
+      return;
+    }
 
     toast("Joined league!");
     await refreshLeaguesList();
@@ -636,7 +694,11 @@
     if (!confirm(`Delete "${selectedLeague.name}"? This cannot be undone.`)) return;
 
     const { error } = await sb.rpc("delete_league", { league_id: selectedLeague.id });
-    if (error) { console.error(error); toast(`Delete error: ${error.message}`); return; }
+    if (error) {
+      console.error(error);
+      toast(`Delete error: ${error.message}`);
+      return;
+    }
 
     toast("League deleted.");
     selectedLeague = null;
@@ -672,25 +734,36 @@
   }
 
   // ----------------------------
-  // FRIENDS + NOTIFS
+  // FRIENDS + NOTIFICATIONS
   // ----------------------------
   const notifModal = $("notif-modal");
-  function openNotifModal() { notifModal.classList.remove("hidden"); }
-  function closeNotifModal() { notifModal.classList.add("hidden"); }
+
+  function openNotifModal() { notifModal?.classList.remove("hidden"); }
+  function closeNotifModal() { notifModal?.classList.add("hidden"); }
 
   async function refreshNotifCount() {
     const dot = $("notif-dot");
-    if (!currentUser) { dot.classList.add("hidden"); return; }
+    if (!currentUser) {
+      dot?.classList.add("hidden");
+      return;
+    }
 
     const { data, error } = await sb.rpc("notifications_count");
-    if (error) { console.warn(error); dot.classList.add("hidden"); return; }
-    if ((data || 0) > 0) dot.classList.remove("hidden");
-    else dot.classList.add("hidden");
+    if (error) {
+      console.warn(error);
+      dot?.classList.add("hidden");
+      return;
+    }
+
+    if ((data || 0) > 0) dot?.classList.remove("hidden");
+    else dot?.classList.add("hidden");
   }
 
   async function loadNotifications() {
     const list = $("notif-list");
     const empty = $("notif-empty");
+    if (!list || !empty) return;
+
     list.innerHTML = "";
     empty.classList.add("hidden");
 
@@ -731,7 +804,11 @@
 
       row.querySelector(".btn-accept").addEventListener("click", async () => {
         const { data: out, error: e } = await sb.rpc("accept_friend_request", { p_request_id: r.request_id });
-        if (e) { toast(e.message); console.error(e); return; }
+        if (e) {
+          toast(e.message);
+          console.error(e);
+          return;
+        }
         toast(out?.message || "Friend added!");
         await refreshFriends();
         await loadNotifications();
@@ -740,7 +817,11 @@
 
       row.querySelector(".btn-decline").addEventListener("click", async () => {
         const { data: out, error: e } = await sb.rpc("decline_friend_request", { p_request_id: r.request_id });
-        if (e) { toast(e.message); console.error(e); return; }
+        if (e) {
+          toast(e.message);
+          console.error(e);
+          return;
+        }
         toast(out?.message || "Declined.");
         await loadNotifications();
         await refreshNotifCount();
@@ -752,6 +833,7 @@
 
   async function refreshFriends() {
     const box = $("friends-list");
+    if (!box) return;
     box.innerHTML = "";
 
     const { data, error } = await sb.rpc("list_friends");
@@ -780,16 +862,23 @@
   }
 
   async function sendFriendRequest() {
-    $("friend-msg").textContent = "";
-    const code = $("friend-code-input").value.trim().toUpperCase();
-    if (!code) { $("friend-msg").textContent = "Enter a Friend Code."; return; }
+    setText("friend-msg", "");
+    const code = $("friend-code-input")?.value.trim().toUpperCase();
+    if (!code) {
+      setText("friend-msg", "Enter a Friend Code.");
+      return;
+    }
 
     const { data, error } = await sb.rpc("request_friend", { p_friend_code: code });
-    if (error) { console.error(error); $("friend-msg").textContent = error.message; return; }
+    if (error) {
+      console.error(error);
+      setText("friend-msg", error.message);
+      return;
+    }
 
-    $("friend-msg").textContent = data?.message || "Request sent.";
+    setText("friend-msg", data?.message || "Request sent.");
     toast(data?.message || "Friend request sent!");
-    $("friend-code-input").value = "";
+    if ($("friend-code-input")) $("friend-code-input").value = "";
     await refreshNotifCount();
   }
 
@@ -799,6 +888,7 @@
   function setMindTab(tab) {
     activeMindGame = tab;
     const tabs = ["guess", "wordle", "riddle", "memory"];
+
     for (const t of tabs) {
       const btn = $(`mg-tab-${t}`);
       const panel = $(`mg-panel-${t}`);
@@ -847,12 +937,15 @@
 
   async function loadGuessUI() {
     if (!currentUser) return;
+
     const { played, row } = await alreadyPlayed("guess10");
     const msg = $("mg-msg");
     const doneBox = $("mg-done");
     const left = $("mg-left");
     const btn = $("btn-mg-try");
     const { key, state } = await mindgameStateGuess();
+
+    if (!msg || !doneBox || !left || !btn) return;
 
     if (played || state.done) {
       setBtnDisabled(btn, true);
@@ -874,24 +967,31 @@
 
   async function tryGuess() {
     if (!currentUser) return;
-    const { played } = await alreadyPlayed("guess10");
-    if (played) { await loadGuessUI(); return; }
 
-    const guess = Number($("mg-guess").value);
-    if (!guess || guess < 1 || guess > 10) { $("mg-msg").textContent = "Enter a number between 1 and 10."; return; }
+    const { played } = await alreadyPlayed("guess10");
+    if (played) {
+      await loadGuessUI();
+      return;
+    }
+
+    const guess = Number($("mg-guess")?.value);
+    if (!guess || guess < 1 || guess > 10) {
+      setText("mg-msg", "Enter a number between 1 and 10.");
+      return;
+    }
 
     const { key, today, state } = await mindgameStateGuess();
     const secret = (hashStr("guess10:" + today) % 10) + 1;
 
     state.tries = (state.tries || 0) + 1;
-    $("mg-left").textContent = String(Math.max(0, 3 - state.tries));
+    setText("mg-left", String(Math.max(0, 3 - state.tries)));
 
     if (guess === secret) {
       state.done = true;
       localStorage.setItem(key, JSON.stringify(state));
       await logMindgameResult("guess10", true, 10);
       toast("+10 points — Mind game win!");
-      $("mg-msg").textContent = "✅ Correct!";
+      setText("mg-msg", "✅ Correct!");
       await refreshAll();
       await loadGuessUI();
       return;
@@ -901,12 +1001,12 @@
       state.done = true;
       localStorage.setItem(key, JSON.stringify(state));
       await logMindgameResult("guess10", false, 0);
-      $("mg-msg").textContent = `❌ Out of tries. The answer was ${secret}.`;
+      setText("mg-msg", `❌ Out of tries. The answer was ${secret}.`);
       await loadGuessUI();
       return;
     }
 
-    $("mg-msg").textContent = guess < secret ? "Too low. Try again." : "Too high. Try again.";
+    setText("mg-msg", guess < secret ? "Too low. Try again." : "Too high. Try again.");
     localStorage.setItem(key, JSON.stringify(state));
   }
 
@@ -914,7 +1014,7 @@
   const WORDS = [
     "HEART","SLEEP","WATER","POWER","TRAIN","HABIT","SMILE","FOCUS","BRAVE","BOOST",
     "APPLE","GRAPE","ALARM","MIGHT","PLANT","GLOWS","NURSE","CLEAN","SWEAT","PEACE"
-  ].map(w => w.slice(0,5));
+  ].map(w => w.slice(0, 5));
 
   function wordleDailyWord() {
     const today = todayKeyLocal();
@@ -937,7 +1037,9 @@
 
   function renderWordleGrid(st) {
     const grid = $("wordle-grid");
+    if (!grid) return;
     grid.innerHTML = "";
+
     for (let r = 0; r < 6; r++) {
       const row = document.createElement("div");
       row.className = "grid grid-cols-5 gap-2";
@@ -951,29 +1053,30 @@
         cell.textContent = ch;
 
         if (guess.length === 5) {
-          const tArr = target.split("");
-          const gArr = guess.toUpperCase().split("");
-
-          if (gArr[c] === tArr[c]) {
+          if (ch === target[c]) {
             cell.classList.add("bg-emerald-700");
-          } else if (tArr.includes(gArr[c])) {
+          } else if (target.includes(ch)) {
             cell.classList.add("bg-amber-700");
-          } else if (gArr[c]) {
+          } else if (ch) {
             cell.classList.add("bg-slate-700");
           }
         }
 
         row.appendChild(cell);
       }
+
       grid.appendChild(row);
     }
   }
 
   async function loadWordleUI() {
     if (!currentUser) return;
+
     const msg = $("wordle-msg");
     const done = $("wordle-done");
     const btn = $("btn-wordle");
+    if (!msg || !done || !btn) return;
+
     const { played, row } = await alreadyPlayed("wordle5");
     const st = wordleLoadState();
 
@@ -996,27 +1099,34 @@
 
   async function submitWordle() {
     if (!currentUser) return;
+
     const { played } = await alreadyPlayed("wordle5");
-    if (played) { await loadWordleUI(); return; }
+    if (played) {
+      await loadWordleUI();
+      return;
+    }
 
     const st = wordleLoadState();
-    if (st.done) { await loadWordleUI(); return; }
+    if (st.done) {
+      await loadWordleUI();
+      return;
+    }
 
-    const raw = ($("wordle-input").value || "").trim().toUpperCase();
+    const raw = ($("wordle-input")?.value || "").trim().toUpperCase();
     if (!/^[A-Z]{5}$/.test(raw)) {
-      $("wordle-msg").textContent = "Please enter exactly 5 letters.";
+      setText("wordle-msg", "Please enter exactly 5 letters.");
       return;
     }
 
     if (st.guesses.length >= 6) {
-      $("wordle-msg").textContent = "No guesses left.";
+      setText("wordle-msg", "No guesses left.");
       return;
     }
 
     st.guesses.push(raw);
     wordleSaveState(st);
     renderWordleGrid(st);
-    $("wordle-input").value = "";
+    if ($("wordle-input")) $("wordle-input").value = "";
 
     const target = wordleDailyWord();
     if (raw === target) {
@@ -1024,7 +1134,7 @@
       wordleSaveState(st);
       await logMindgameResult("wordle5", true, 15);
       toast("+15 points — Wordle win!");
-      $("wordle-msg").textContent = "✅ Correct!";
+      setText("wordle-msg", "✅ Correct!");
       await refreshAll();
       await loadWordleUI();
       return;
@@ -1034,12 +1144,12 @@
       st.done = true;
       wordleSaveState(st);
       await logMindgameResult("wordle5", false, 0);
-      $("wordle-msg").textContent = `❌ Out of tries. The word was ${target}.`;
+      setText("wordle-msg", `❌ Out of tries. The word was ${target}.`);
       await loadWordleUI();
       return;
     }
 
-    $("wordle-msg").textContent = `Try again (${6 - st.guesses.length} tries left).`;
+    setText("wordle-msg", `Try again (${6 - st.guesses.length} tries left).`);
   }
 
   // RIDDLE
@@ -1072,11 +1182,12 @@
 
   async function loadRiddleUI() {
     const r = riddleToday();
-    $("riddle-text").textContent = r.q;
+    setText("riddle-text", r.q);
 
     const msg = $("riddle-msg");
     const done = $("riddle-done");
     const btn = $("btn-riddle");
+    if (!msg || !done || !btn) return;
 
     const { played, row } = await alreadyPlayed("riddle");
     const st = riddleLoadState();
@@ -1102,15 +1213,24 @@
 
   async function submitRiddle() {
     const { played } = await alreadyPlayed("riddle");
-    if (played) { await loadRiddleUI(); return; }
+    if (played) {
+      await loadRiddleUI();
+      return;
+    }
 
     const st = riddleLoadState();
-    if (st.done) { await loadRiddleUI(); return; }
+    if (st.done) {
+      await loadRiddleUI();
+      return;
+    }
 
     const r = riddleToday();
-    const ans = normalizeAnswer($("riddle-input").value);
+    const ans = normalizeAnswer($("riddle-input")?.value);
 
-    if (!ans) { $("riddle-msg").textContent = "Type an answer."; return; }
+    if (!ans) {
+      setText("riddle-msg", "Type an answer.");
+      return;
+    }
 
     st.done = true;
     riddleSaveState(st);
@@ -1118,14 +1238,14 @@
     if (ans === normalizeAnswer(r.a)) {
       await logMindgameResult("riddle", true, 12);
       toast("+12 points — Riddle solved!");
-      $("riddle-msg").textContent = "✅ Correct!";
+      setText("riddle-msg", "✅ Correct!");
       await refreshAll();
       await loadRiddleUI();
       return;
     }
 
     await logMindgameResult("riddle", false, 0);
-    $("riddle-msg").textContent = `❌ Not quite. The answer was: ${r.a}.`;
+    setText("riddle-msg", `❌ Not quite. The answer was: ${r.a}.`);
     await loadRiddleUI();
   }
 
@@ -1153,6 +1273,7 @@
     const seed = hashStr("mm:" + today + ":" + (currentUser?.id || ""));
     const pairs = mmSeededShuffle(EMOJIS, seed).slice(0, 8);
     const deck = mmSeededShuffle([...pairs, ...pairs], seed ^ 0x9e3779b9);
+
     return {
       deck,
       revealed: Array(16).fill(false),
@@ -1174,8 +1295,9 @@
   }
 
   function renderMM(st) {
-    $("mm-moves").textContent = String(st.moves || 0);
+    setText("mm-moves", String(st.moves || 0));
     const grid = $("mm-grid");
+    if (!grid) return;
     grid.innerHTML = "";
 
     for (let i = 0; i < 16; i++) {
@@ -1195,8 +1317,9 @@
   async function loadMMUI() {
     const msg = $("mm-msg");
     const done = $("mm-done");
-    const { played, row } = await alreadyPlayed("memorymatch");
+    if (!msg || !done) return;
 
+    const { played, row } = await alreadyPlayed("memorymatch");
     let st = mmLoadState();
     renderMM(st);
 
@@ -1215,7 +1338,10 @@
 
   async function mmClick(i) {
     const { played } = await alreadyPlayed("memorymatch");
-    if (played) { await loadMMUI(); return; }
+    if (played) {
+      await loadMMUI();
+      return;
+    }
 
     let st = mmLoadState();
     if (st.done || st.lock) return;
@@ -1234,7 +1360,8 @@
     st.lock = true;
     st.moves = (st.moves || 0) + 1;
 
-    const a = st.first, b = st.second;
+    const a = st.first;
+    const b = st.second;
     const match = st.deck[a] === st.deck[b];
 
     mmSaveState(st);
@@ -1261,7 +1388,7 @@
         mmSaveState(st);
         await logMindgameResult("memorymatch", true, 15);
         toast("+15 points — Memory Match complete!");
-        $("mm-msg").textContent = "✅ Completed!";
+        setText("mm-msg", "✅ Completed!");
         await refreshAll();
       } else {
         mmSaveState(st);
@@ -1274,11 +1401,15 @@
 
   async function mmReset() {
     const { played } = await alreadyPlayed("memorymatch");
-    if (played) { toast("You already played today."); return; }
+    if (played) {
+      toast("You already played today.");
+      return;
+    }
+
     const st = mmInitBoard();
     mmSaveState(st);
     renderMM(st);
-    $("mm-msg").textContent = "Board reset.";
+    setText("mm-msg", "Board reset.");
   }
 
   async function loadMindGamesAll() {
@@ -1300,15 +1431,23 @@
   }
 
   async function sendResetEmail() {
-    $("reset-msg").textContent = "";
-    const email = $("reset-email").value.trim().toLowerCase();
-    if (!email) { $("reset-msg").textContent = "Enter your email."; return; }
+    setText("reset-msg", "");
+    const email = $("reset-email")?.value.trim().toLowerCase();
+    if (!email) {
+      setText("reset-msg", "Enter your email.");
+      return;
+    }
 
     const redirectTo = window.location.origin + window.location.pathname;
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
-    if (error) { console.error(error); $("reset-msg").textContent = error.message; return; }
 
-    $("reset-msg").textContent = "✅ Reset link sent! Check your email.";
+    if (error) {
+      console.error(error);
+      setText("reset-msg", error.message);
+      return;
+    }
+
+    setText("reset-msg", "✅ Reset link sent! Check your email.");
   }
 
   async function handleRecoveryLinkIfPresent() {
@@ -1316,8 +1455,8 @@
     if (!code) return;
 
     showResetBox(true);
-    $("newpass-box").classList.remove("hidden");
-    $("reset-msg").textContent = "✅ Recovery link detected. Set your new password below.";
+    $("newpass-box")?.classList.remove("hidden");
+    setText("reset-msg", "✅ Recovery link detected. Set your new password below.");
 
     try {
       const { error } = await sb.auth.exchangeCodeForSession(code);
@@ -1328,16 +1467,28 @@
   }
 
   async function setNewPassword() {
-    $("reset-msg").textContent = "";
-    const p1 = $("new-pass").value;
-    const p2 = $("new-pass2").value;
-    if (!p1 || p1.length < 6) { $("reset-msg").textContent = "Password must be at least 6 characters."; return; }
-    if (p1 !== p2) { $("reset-msg").textContent = "Passwords do not match."; return; }
+    setText("reset-msg", "");
+    const p1 = $("new-pass")?.value;
+    const p2 = $("new-pass2")?.value;
+
+    if (!p1 || p1.length < 6) {
+      setText("reset-msg", "Password must be at least 6 characters.");
+      return;
+    }
+
+    if (p1 !== p2) {
+      setText("reset-msg", "Passwords do not match.");
+      return;
+    }
 
     const { error } = await sb.auth.updateUser({ password: p1 });
-    if (error) { console.error(error); $("reset-msg").textContent = error.message; return; }
+    if (error) {
+      console.error(error);
+      setText("reset-msg", error.message);
+      return;
+    }
 
-    $("reset-msg").textContent = "✅ Password updated! You can log in now.";
+    setText("reset-msg", "✅ Password updated! You can log in now.");
     toast("Password updated!");
     history.replaceState({}, document.title, window.location.pathname);
   }
@@ -1346,13 +1497,20 @@
   // DELETE PROFILE
   // ----------------------------
   async function deleteMyProfileData() {
-    $("del-msg").textContent = "";
+    setText("del-msg", "");
     const sure = prompt('Type DELETE to confirm you want to delete your profile data:');
-    if (sure !== "DELETE") { $("del-msg").textContent = "Cancelled."; return; }
-    if (!confirm("Final confirmation: delete your data now?")) { $("del-msg").textContent = "Cancelled."; return; }
+    if (sure !== "DELETE") {
+      setText("del-msg", "Cancelled.");
+      return;
+    }
+    if (!confirm("Final confirmation: delete your data now?")) {
+      setText("del-msg", "Cancelled.");
+      return;
+    }
 
     try {
       toast("Deleting your data...");
+
       try {
         const uid = currentUser.id;
         const { data: listed } = await sb.storage.from("avatars").list(uid, { limit: 100 });
@@ -1373,7 +1531,7 @@
       showAuth("Your profile data was deleted. You can sign up again or log in to start fresh.");
     } catch (e) {
       console.error(e);
-      $("del-msg").textContent = `Delete error: ${e.message || e}`;
+      setText("del-msg", `Delete error: ${e.message || e}`);
       toast("Delete failed. Check console.");
     }
   }
@@ -1410,14 +1568,14 @@
   $("li-pass-eye")?.addEventListener("click", () => toggleEye("li-pass"));
   $("new-pass-eye")?.addEventListener("click", () => toggleEye("new-pass"));
 
-  $("btn-signup").addEventListener("click", async () => {
-    authMsg.textContent = "";
-    const email = $("su-email").value.trim().toLowerCase();
-    const password = $("su-pass").value;
-    const name = $("su-name").value.trim();
+  $("btn-signup")?.addEventListener("click", async () => {
+    if (authMsg) authMsg.textContent = "";
+    const email = $("su-email")?.value.trim().toLowerCase();
+    const password = $("su-pass")?.value;
+    const name = $("su-name")?.value.trim();
 
     if (!email || !password || !name) {
-      authMsg.textContent = "Please enter email, password, and display name.";
+      if (authMsg) authMsg.textContent = "Please enter email, password, and display name.";
       return;
     }
 
@@ -1428,18 +1586,22 @@
       options: { emailRedirectTo: redirectTo, data: { name } }
     });
 
-    if (error) { authMsg.textContent = `Signup error: ${error.message}`; return; }
-    authMsg.textContent = "Signup successful! Check your email and click the verification link, then log in.";
+    if (error) {
+      if (authMsg) authMsg.textContent = `Signup error: ${error.message}`;
+      return;
+    }
+
+    if (authMsg) authMsg.textContent = "Signup successful! Check your email and click the verification link, then log in.";
   });
 
-  $("btn-login").addEventListener("click", async () => {
-    authMsg.textContent = "";
-    const email = $("li-email").value.trim().toLowerCase();
-    const password = $("li-pass").value;
+  $("btn-login")?.addEventListener("click", async () => {
+    if (authMsg) authMsg.textContent = "";
+    const email = $("li-email")?.value.trim().toLowerCase();
+    const password = $("li-pass")?.value;
 
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) {
-      authMsg.textContent = "Incorrect email or password. Please try again.";
+      if (authMsg) authMsg.textContent = "Incorrect email or password. Please try again.";
       return;
     }
 
@@ -1447,7 +1609,7 @@
     await afterLogin();
   });
 
-  $("btn-logout").addEventListener("click", async () => {
+  $("btn-logout")?.addEventListener("click", async () => {
     await sb.auth.signOut();
     currentUser = null;
     currentProfile = null;
@@ -1455,48 +1617,61 @@
     showAuth("Logged out.");
   });
 
-  $("btn-forgot")?.addEventListener("click", () => { showResetBox(true); $("reset-msg").textContent = ""; });
+  $("btn-forgot")?.addEventListener("click", () => {
+    showResetBox(true);
+    setText("reset-msg", "");
+  });
+
   $("btn-send-reset")?.addEventListener("click", sendResetEmail);
   $("btn-set-newpass")?.addEventListener("click", setNewPassword);
 
-  $("nav-dashboard").addEventListener("click", goDashboard);
-  $("nav-profile").addEventListener("click", goProfile);
-  $("nav-friends").addEventListener("click", async () => { goFriends(); await refreshFriends(); });
-  $("nav-mindgame").addEventListener("click", async () => { goMindgame(); await loadMindGamesAll(); });
+  $("nav-dashboard")?.addEventListener("click", goDashboard);
+  $("nav-profile")?.addEventListener("click", goProfile);
+  $("nav-friends")?.addEventListener("click", async () => {
+    goFriends();
+    await refreshFriends();
+  });
+  $("nav-mindgame")?.addEventListener("click", async () => {
+    goMindgame();
+    await loadMindGamesAll();
+  });
 
-  $("btn-league-back").addEventListener("click", goDashboard);
-  $("btn-league-refresh").addEventListener("click", refreshLeagueBoard);
-  $("btn-league-delete").addEventListener("click", deleteLeague);
+  $("btn-league-back")?.addEventListener("click", goDashboard);
+  $("btn-league-refresh")?.addEventListener("click", refreshLeagueBoard);
+  $("btn-league-delete")?.addEventListener("click", deleteLeague);
 
-  $("btn-open-league-modal").addEventListener("click", openLeagueModal);
-  $("btn-close-league-modal").addEventListener("click", closeLeagueModal);
-  $("btn-create-league").addEventListener("click", createLeague);
-  $("btn-join-league").addEventListener("click", joinLeague);
+  $("btn-open-league-modal")?.addEventListener("click", openLeagueModal);
+  $("btn-close-league-modal")?.addEventListener("click", closeLeagueModal);
+  $("btn-create-league")?.addEventListener("click", createLeague);
+  $("btn-join-league")?.addEventListener("click", joinLeague);
 
-  $("btn-notifs").addEventListener("click", async () => { openNotifModal(); await loadNotifications(); });
-  $("btn-close-notif").addEventListener("click", () => closeNotifModal());
+  $("btn-notifs")?.addEventListener("click", async () => {
+    openNotifModal();
+    await loadNotifications();
+  });
+  $("btn-close-notif")?.addEventListener("click", closeNotifModal);
 
-  $("btn-send-friend").addEventListener("click", sendFriendRequest);
+  $("btn-send-friend")?.addEventListener("click", sendFriendRequest);
 
-  $("btn-mg-try").addEventListener("click", tryGuess);
-  $("btn-wordle").addEventListener("click", submitWordle);
-  $("btn-riddle").addEventListener("click", submitRiddle);
-  $("btn-mm-reset").addEventListener("click", mmReset);
+  $("btn-mg-try")?.addEventListener("click", tryGuess);
+  $("btn-wordle")?.addEventListener("click", submitWordle);
+  $("btn-riddle")?.addEventListener("click", submitRiddle);
+  $("btn-mm-reset")?.addEventListener("click", mmReset);
 
-  $("mg-tab-guess").addEventListener("click", async () => { setMindTab("guess"); await loadMindGamesAll(); });
-  $("mg-tab-wordle").addEventListener("click", async () => { setMindTab("wordle"); await loadMindGamesAll(); });
-  $("mg-tab-riddle").addEventListener("click", async () => { setMindTab("riddle"); await loadMindGamesAll(); });
-  $("mg-tab-memory").addEventListener("click", async () => { setMindTab("memory"); await loadMindGamesAll(); });
+  $("mg-tab-guess")?.addEventListener("click", async () => { setMindTab("guess"); await loadMindGamesAll(); });
+  $("mg-tab-wordle")?.addEventListener("click", async () => { setMindTab("wordle"); await loadMindGamesAll(); });
+  $("mg-tab-riddle")?.addEventListener("click", async () => { setMindTab("riddle"); await loadMindGamesAll(); });
+  $("mg-tab-memory")?.addEventListener("click", async () => { setMindTab("memory"); await loadMindGamesAll(); });
 
-  $("avatar-file").addEventListener("change", async (e) => {
+  $("avatar-file")?.addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       toast("Uploading photo…");
       const url = await uploadAvatar(file);
-      $("avatar-img").src = url;
-      $("hdr-avatar").src = url;
+      if ($("avatar-img")) $("avatar-img").src = url;
+      if ($("hdr-avatar")) $("hdr-avatar").src = url;
       toast("Profile photo updated!");
     } catch (err) {
       console.error(err);
@@ -1506,37 +1681,40 @@
     }
   });
 
-  $("btn-delete-profile").addEventListener("click", deleteMyProfileData);
+  $("btn-delete-profile")?.addEventListener("click", deleteMyProfileData);
 
-  $("btn-open-habit-setup").addEventListener("click", () => {
-    $("habit-setup-modal").classList.remove("hidden");
-    $("habit-setup-msg").textContent = "";
+  $("btn-open-habit-setup")?.addEventListener("click", () => {
+    $("habit-setup-modal")?.classList.remove("hidden");
+    setText("habit-setup-msg", "");
   });
 
-  $("btn-setup-add-custom").addEventListener("click", async () => {
-    const name = $("setup-custom-name").value.trim();
-    const points = Number($("setup-custom-points").value || 5);
-    if (!name) { $("habit-setup-msg").textContent = "Enter a custom habit name."; return; }
+  $("btn-setup-add-custom")?.addEventListener("click", async () => {
+    const name = $("setup-custom-name")?.value.trim();
+    const points = Number($("setup-custom-points")?.value || 5);
+    if (!name) {
+      setText("habit-setup-msg", "Enter a custom habit name.");
+      return;
+    }
     await addCustomHabit(name, points);
   });
 
-  $("btn-save-habit-setup").addEventListener("click", saveHabitSelections);
+  $("btn-save-habit-setup")?.addEventListener("click", saveHabitSelections);
 
-  $("btn-close-steps-modal").addEventListener("click", () => {
-    $("steps-modal").classList.add("hidden");
+  $("btn-close-steps-modal")?.addEventListener("click", () => {
+    $("steps-modal")?.classList.add("hidden");
   });
 
-  $("steps-range").addEventListener("input", updateStepsUI);
+  $("steps-range")?.addEventListener("input", updateStepsUI);
 
-  $("btn-log-steps").addEventListener("click", async () => {
-    const v = Number($("steps-range").value || 0);
+  $("btn-log-steps")?.addEventListener("click", async () => {
+    const v = Number($("steps-range")?.value || 0);
     const points = Math.min(10, Math.floor(v / 1000));
     if (v < 1000) {
       toast("Log at least 1,000 steps.");
       return;
     }
     await logHabit("steps", "Steps", points);
-    $("steps-modal").classList.add("hidden");
+    $("steps-modal")?.classList.add("hidden");
   });
 
   // ----------------------------
@@ -1554,17 +1732,18 @@
       return;
     }
 
-    setText("whoami", `${currentProfile.name}`);
+    setText("whoami", currentProfile.name);
     setText("profile-name", currentProfile.name);
     setText("profile-email", currentProfile.email);
     setText("friend-code", currentProfile.friend_code || "—");
 
     const defaultAvatar = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='100%25' height='100%25' fill='%231f2937'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='56'>👤</text></svg>";
     const avatarUrl = currentProfile.avatar_url || defaultAvatar;
-    $("hdr-avatar").src = avatarUrl;
-    $("avatar-img").src = avatarUrl;
+    if ($("hdr-avatar")) $("hdr-avatar").src = avatarUrl;
+    if ($("avatar-img")) $("avatar-img").src = avatarUrl;
 
     await seedDefaultsIfNeeded();
+    await loadPlayerHabits();
     await refreshAll();
     updateStepsUI();
   }
@@ -1578,10 +1757,18 @@
     await handleRecoveryLinkIfPresent();
 
     const { data, error } = await sb.auth.getSession();
-    if (error) { console.error(error); showAuth("Auth error. Please refresh."); return; }
+    if (error) {
+      console.error(error);
+      showAuth("Auth error. Please refresh.");
+      return;
+    }
 
     const session = data.session;
-    if (!session?.user) { showAuth(""); setMindTab("guess"); return; }
+    if (!session?.user) {
+      showAuth("");
+      setMindTab("guess");
+      return;
+    }
 
     currentUser = session.user;
     await afterLogin();
