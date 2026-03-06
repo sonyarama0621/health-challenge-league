@@ -60,7 +60,7 @@
     reading: { name: "Reading", points: 9, color: "bg-orange-700 hover:bg-orange-600" },
     sleep: { name: "Sleep", points: 11, color: "bg-violet-700 hover:bg-violet-600" },
     no_sugar: { name: "No Added Sugar", points: 7, color: "bg-fuchsia-700 hover:bg-fuchsia-600" },
-    no_coke: { name: "No Coke", points: 5, color: "bg-amber-700 hover:bg-amber-600" }
+    no_soda: { name: "No Soda", points: 5, color: "bg-amber-700 hover:bg-amber-600" }
   };
 
   const authBox = $("auth-box");
@@ -293,61 +293,32 @@
 
     for (const h of playerHabits) {
       if (h.habit_key === "steps") {
-        const card = document.createElement("div");
-        card.className = "md:col-span-2 bg-slate-900/50 border border-slate-700 rounded-xl p-4";
-
-        card.innerHTML = `
-          <div class="font-extrabold text-lg">Steps</div>
-          <div class="text-slate-300 text-sm mt-1">Slide to your step count. 1K = 1 point, 10K+ = 10 points.</div>
-
-          <div class="mt-4">
-            <input id="steps-range" type="range" min="0" max="10000" step="1000" value="0" class="w-full" />
-            <div class="mt-3 flex items-center justify-between text-slate-200">
-              <div><span id="steps-display" class="font-extrabold">0</span> steps</div>
-              <div><span id="steps-points" class="font-extrabold text-amber-300">0</span> points</div>
-            </div>
-          </div>
-
-          <button id="btn-log-steps" class="mt-4 w-full font-bold py-4 rounded-xl bg-blue-700 hover:bg-blue-600">
-            Log Steps
-          </button>
-        `;
-
-        box.appendChild(card);
-
-        const range = $("steps-range");
-        const display = $("steps-display");
-        const pts = $("steps-points");
-        const updateStepsUI = () => {
-          const v = Number(range.value || 0);
-          const points = Math.min(10, Math.floor(v / 1000));
-          display.textContent = v.toLocaleString();
-          pts.textContent = points;
-        };
-        range.addEventListener("input", updateStepsUI);
-        updateStepsUI();
-
-        $("btn-log-steps").addEventListener("click", async () => {
-          const v = Number(range.value || 0);
-          const points = Math.min(10, Math.floor(v / 1000));
-          if (v < 1000) {
-            toast("Log at least 1,000 steps.");
-            return;
-          }
-          await logHabit("steps", "Steps", points);
+        const card = document.createElement("button");
+        card.className = "md:col-span-2 w-full font-bold py-4 rounded-xl bg-blue-700 hover:bg-blue-600";
+        card.id = "btn-open-steps-modal";
+        card.textContent = "Log Steps";
+        card.addEventListener("click", () => {
+          $("steps-modal").classList.remove("hidden");
+          updateStepsUI();
         });
 
+        const wrapper = document.createElement("div");
+        wrapper.className = "md:col-span-2 bg-slate-900/50 border border-slate-700 rounded-xl p-4";
+        wrapper.innerHTML = `
+          <div class="font-extrabold text-lg">Steps</div>
+          <div class="text-slate-300 text-sm mt-1">Click to open the step slider. 1K = 1 point, 10K+ = 10 points.</div>
+        `;
+        wrapper.appendChild(card);
+        box.appendChild(wrapper);
         continue;
       }
 
       const meta = BUILTIN_HABITS[h.habit_key] || {};
       const color = meta.color || "bg-slate-700 hover:bg-slate-600";
-      const pointsText = `(+${h.points})`;
-
       const btn = document.createElement("button");
       btn.className = `habit-btn w-full font-bold py-4 rounded-xl ${color}`;
       btn.id = `habit-${h.habit_key}`;
-      btn.textContent = `Log ${h.habit_name} ${pointsText}`;
+      btn.textContent = `Log ${h.habit_name} (+${h.points})`;
       btn.addEventListener("click", async () => {
         await logHabit(h.habit_key, h.habit_name, h.points);
       });
@@ -436,6 +407,21 @@
   }
 
   // ----------------------------
+  // STEPS MODAL
+  // ----------------------------
+  function updateStepsUI() {
+    const range = $("steps-range");
+    const display = $("steps-display");
+    const pts = $("steps-points");
+    if (!range || !display || !pts) return;
+
+    const v = Number(range.value || 0);
+    const points = Math.min(10, Math.floor(v / 1000));
+    display.textContent = v.toLocaleString();
+    pts.textContent = points;
+  }
+
+  // ----------------------------
   // HABIT LOGGING
   // ----------------------------
   async function refreshHabitButtonStates() {
@@ -454,6 +440,7 @@
 
     for (const h of playerHabits) {
       if (h.habit_key === "steps") {
+        setBtnDisabled($("btn-open-steps-modal"), logged.has("steps"));
         setBtnDisabled($("btn-log-steps"), logged.has("steps"));
       } else {
         setBtnDisabled($(`habit-${h.habit_key}`), logged.has(h.habit_key));
@@ -490,9 +477,7 @@
     await refreshAll();
   }
 
-  function wireHabitButtons() {
-    // dynamic habit buttons are wired when rendered
-  }
+  function wireHabitButtons() {}
 
   // ----------------------------
   // LEAGUES
@@ -966,12 +951,18 @@
         cell.textContent = ch;
 
         if (guess.length === 5) {
-          const g = guess.toUpperCase();
-          const t = target;
-          if (ch && ch === t[c]) cell.classList.add("bg-emerald-700");
-          else if (ch && t.includes(ch)) cell.classList.add("bg-amber-700");
-          else if (ch) cell.classList.add("bg-slate-700");
+          const tArr = target.split("");
+          const gArr = guess.toUpperCase().split("");
+
+          if (gArr[c] === tArr[c]) {
+            cell.classList.add("bg-emerald-700");
+          } else if (tArr.includes(gArr[c])) {
+            cell.classList.add("bg-amber-700");
+          } else if (gArr[c]) {
+            cell.classList.add("bg-slate-700");
+          }
         }
+
         row.appendChild(cell);
       }
       grid.appendChild(row);
@@ -1483,7 +1474,7 @@
   $("btn-join-league").addEventListener("click", joinLeague);
 
   $("btn-notifs").addEventListener("click", async () => { openNotifModal(); await loadNotifications(); });
-  $("btn-close-notif").addEventListener("click", closeNotifModal);
+  $("btn-close-notif").addEventListener("click", () => closeNotifModal());
 
   $("btn-send-friend").addEventListener("click", sendFriendRequest);
 
@@ -1531,6 +1522,23 @@
 
   $("btn-save-habit-setup").addEventListener("click", saveHabitSelections);
 
+  $("btn-close-steps-modal").addEventListener("click", () => {
+    $("steps-modal").classList.add("hidden");
+  });
+
+  $("steps-range").addEventListener("input", updateStepsUI);
+
+  $("btn-log-steps").addEventListener("click", async () => {
+    const v = Number($("steps-range").value || 0);
+    const points = Math.min(10, Math.floor(v / 1000));
+    if (v < 1000) {
+      toast("Log at least 1,000 steps.");
+      return;
+    }
+    await logHabit("steps", "Steps", points);
+    $("steps-modal").classList.add("hidden");
+  });
+
   // ----------------------------
   // AFTER LOGIN
   // ----------------------------
@@ -1558,6 +1566,7 @@
 
     await seedDefaultsIfNeeded();
     await refreshAll();
+    updateStepsUI();
   }
 
   // ----------------------------
