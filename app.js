@@ -55,6 +55,11 @@
     return h >>> 0;
   }
 
+  function uniqueFileName(prefix, ext = "jpg") {
+    const cleanExt = (ext || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${cleanExt}`;
+  }
+
   const BUILTIN_HABITS = {
     water: { name: "Water", points: 5, color: "bg-sky-600 hover:bg-sky-500" },
     protein: { name: "Protein", points: 8, color: "bg-red-600 hover:bg-red-500" },
@@ -259,9 +264,6 @@
     }
   }
 
-  // ----------------------------
-  // PLAYER HABITS
-  // ----------------------------
   async function seedDefaultsIfNeeded() {
     const { data, error } = await sb
       .from("player_habits")
@@ -434,19 +436,17 @@
     setTimeout(() => $("habit-setup-modal")?.classList.add("hidden"), 600);
   }
 
-  // ----------------------------
-  // BACKGROUND IMAGE
-  // ----------------------------
   async function uploadDashboardBackground(file) {
     if (!currentUser) return null;
 
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const path = `${currentUser.id}/dashboard-bg.${ext}`;
+    const filename = uniqueFileName("dashboard-bg", ext);
+    const path = `${currentUser.id}/${filename}`;
 
     const { error: upErr } = await sb.storage
       .from("dashboard-backgrounds")
       .upload(path, file, {
-        upsert: true,
+        upsert: false,
         contentType: file.type
       });
 
@@ -494,9 +494,6 @@
     }
   }
 
-  // ----------------------------
-  // STEPS MODAL
-  // ----------------------------
   function updateStepsUI() {
     const range = $("steps-range");
     const display = $("steps-display");
@@ -509,9 +506,6 @@
     pts.textContent = points;
   }
 
-  // ----------------------------
-  // HABIT LOGGING
-  // ----------------------------
   async function refreshHabitButtonStates() {
     if (!currentUser) return;
 
@@ -580,9 +574,6 @@
 
   function wireHabitButtons() {}
 
-  // ----------------------------
-  // LEAGUES
-  // ----------------------------
   const leagueModal = $("league-modal");
 
   function openLeagueModal() {
@@ -776,20 +767,25 @@
     await refreshLeaguesList();
   }
 
-  // ----------------------------
-  // AVATAR
-  // ----------------------------
   async function uploadAvatar(file) {
     if (!currentUser) return;
 
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const path = `${currentUser.id}/avatar.${ext}`;
+    const filename = uniqueFileName("avatar", ext);
+    const path = `${currentUser.id}/${filename}`;
+
+    const { data: listed } = await sb.storage.from("avatars").list(currentUser.id, { limit: 100 });
+    const oldPaths = (listed || []).map(x => `${currentUser.id}/${x.name}`);
 
     const { error: upErr } = await sb.storage.from("avatars").upload(path, file, {
-      upsert: true,
+      upsert: false,
       contentType: file.type
     });
     if (upErr) throw upErr;
+
+    if (oldPaths.length > 0) {
+      await sb.storage.from("avatars").remove(oldPaths);
+    }
 
     const { data: pub } = sb.storage.from("avatars").getPublicUrl(path);
     const url = pub?.publicUrl;
@@ -803,9 +799,6 @@
     return url;
   }
 
-  // ----------------------------
-  // FRIENDS + NOTIFICATIONS
-  // ----------------------------
   const notifModal = $("notif-modal");
 
   function openNotifModal() { notifModal?.classList.remove("hidden"); }
@@ -952,9 +945,6 @@
     await refreshNotifCount();
   }
 
-  // ----------------------------
-  // MIND GAMES
-  // ----------------------------
   function setMindTab(tab) {
     activeMindGame = tab;
     const tabs = ["guess", "wordle", "riddle", "memory"];
@@ -1481,9 +1471,6 @@
     await loadMMUI();
   }
 
-  // ----------------------------
-  // PASSWORD RESET
-  // ----------------------------
   function showResetBox(show) {
     const box = $("reset-box");
     if (!box) return;
@@ -1554,9 +1541,6 @@
     history.replaceState({}, document.title, window.location.pathname);
   }
 
-  // ----------------------------
-  // DELETE PROFILE
-  // ----------------------------
   async function deleteMyProfileData() {
     setText("del-msg", "");
     const sure = prompt('Type DELETE to confirm you want to delete your profile data:');
@@ -1574,11 +1558,15 @@
 
       try {
         const uid = currentUser.id;
-        const { data: listed } = await sb.storage.from("avatars").list(uid, { limit: 100 });
-        const paths = (listed || []).map(x => `${uid}/${x.name}`);
-        if (paths.length > 0) await sb.storage.from("avatars").remove(paths);
+        const { data: listedAvatars } = await sb.storage.from("avatars").list(uid, { limit: 100 });
+        const avatarPaths = (listedAvatars || []).map(x => `${uid}/${x.name}`);
+        if (avatarPaths.length > 0) await sb.storage.from("avatars").remove(avatarPaths);
+
+        const { data: listedBgs } = await sb.storage.from("dashboard-backgrounds").list(uid, { limit: 100 });
+        const bgPaths = (listedBgs || []).map(x => `${uid}/${x.name}`);
+        if (bgPaths.length > 0) await sb.storage.from("dashboard-backgrounds").remove(bgPaths);
       } catch (e) {
-        console.warn("Avatar cleanup skipped:", e);
+        console.warn("Storage cleanup skipped:", e);
       }
 
       const { data, error } = await sb.rpc("delete_my_data");
@@ -1597,9 +1585,6 @@
     }
   }
 
-  // ----------------------------
-  // REFRESH ALL
-  // ----------------------------
   async function refreshAll() {
     if (!currentUser) return;
 
@@ -1622,9 +1607,6 @@
     await loadMindGamesAll();
   }
 
-  // ----------------------------
-  // EVENTS
-  // ----------------------------
   $("su-pass-eye")?.addEventListener("click", () => toggleEye("su-pass"));
   $("li-pass-eye")?.addEventListener("click", () => toggleEye("li-pass"));
   $("new-pass-eye")?.addEventListener("click", () => toggleEye("new-pass"));
@@ -1731,6 +1713,7 @@
     try {
       toast("Uploading photo…");
       const url = await uploadAvatar(file);
+      if (currentProfile) currentProfile.avatar_url = url;
       if ($("avatar-img")) $("avatar-img").src = url;
       if ($("hdr-avatar")) $("hdr-avatar").src = url;
       toast("Profile photo updated!");
@@ -1760,8 +1743,10 @@
     try {
       toast("Uploading background…");
       const url = await uploadDashboardBackground(file);
+
       if (currentProfile) currentProfile.dashboard_bg_url = url;
       applyDashboardBackground(url);
+
       setText("bg-msg", "Background updated!");
       toast("Dashboard background updated!");
     } catch (err) {
@@ -1811,9 +1796,6 @@
     $("steps-modal")?.classList.add("hidden");
   });
 
-  // ----------------------------
-  // AFTER LOGIN
-  // ----------------------------
   async function afterLogin() {
     showApp();
     goDashboard();
@@ -1844,9 +1826,6 @@
     updateStepsUI();
   }
 
-  // ----------------------------
-  // INIT
-  // ----------------------------
   wireHabitButtons();
 
   (async function init() {
