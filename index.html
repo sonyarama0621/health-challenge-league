@@ -189,8 +189,8 @@
       <div class="glass rounded-2xl p-6 flex items-start justify-between gap-6">
         <div class="min-w-0">
           <div class="text-slate-400 text-sm">Logged in as</div>
-          <div class="flex items-center gap-3 mt-1">
-            <img id="hdr-avatar" class="w-10 h-10 rounded-xl object-cover bg-slate-800 border border-slate-700" alt="avatar" />
+          <div class="flex items-center gap-4 mt-1">
+            <img id="hdr-avatar" class="w-14 h-14 rounded-2xl object-cover bg-slate-800 border border-slate-700" alt="avatar" />
             <div>
               <div id="whoami" class="text-2xl font-extrabold truncate"></div>
               <div id="whoami-bio" class="text-slate-300 text-sm max-w-xl"></div>
@@ -251,37 +251,48 @@
 
       <!-- LEAGUE VIEW -->
       <div id="view-league" class="hidden space-y-6">
-        <div class="glass rounded-2xl p-6 flex items-center justify-between gap-4">
-          <div class="flex items-center gap-4 min-w-0">
-            <img id="league-header-image" class="w-16 h-16 rounded-2xl object-cover bg-slate-800 border border-slate-700 hidden" alt="league image" />
-            <div>
-              <div class="text-slate-400 text-sm">League</div>
-              <div id="league-title" class="text-3xl font-extrabold">—</div>
-              <div id="league-sub" class="text-slate-300 text-sm mt-1"></div>
-              <div id="league-bio" class="text-slate-300 text-sm mt-2"></div>
+        <div class="glass rounded-2xl p-6">
+          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="flex items-center gap-4 min-w-0">
+              <img id="league-header-image" class="w-20 h-20 rounded-2xl object-cover bg-slate-800 border border-slate-700 hidden" alt="league image" />
+              <div>
+                <div class="text-slate-400 text-sm">League</div>
+                <div id="league-title" class="text-3xl font-extrabold">—</div>
+                <div id="league-sub" class="text-slate-300 text-sm mt-1"></div>
+                <div id="league-bio" class="text-slate-300 text-sm mt-2"></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button id="btn-league-back" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Back</button>
+              <button id="btn-league-refresh" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Refresh</button>
+              <button id="btn-league-settings" class="hidden px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-bold">Settings</button>
+              <button id="btn-league-delete" class="hidden px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 font-bold">Delete League</button>
             </div>
           </div>
-          <div class="flex items-center gap-3">
-            <button id="btn-league-back" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Back</button>
-            <button id="btn-league-refresh" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600">Refresh</button>
-            <button id="btn-league-settings" class="hidden px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-bold">Settings</button>
-            <button id="btn-league-delete" class="hidden px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 font-bold">Delete League</button>
-          </div>
         </div>
 
-        <div class="glass rounded-2xl p-6">
-          <div class="flex items-center justify-between">
-            <h3 class="text-2xl font-extrabold">League Habits</h3>
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div class="xl:col-span-2 space-y-6">
+            <div class="glass rounded-2xl p-6">
+              <div class="flex items-center justify-between">
+                <h3 class="text-2xl font-extrabold">Leaderboard</h3>
+                <div class="text-slate-400 text-sm">League standings</div>
+              </div>
+              <div id="league-board" class="mt-4 space-y-3"></div>
+            </div>
           </div>
-          <div id="league-habits-view" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-        </div>
 
-        <div class="glass rounded-2xl p-6">
-          <div class="flex items-center justify-between">
-            <h3 class="text-2xl font-extrabold">Leaderboard</h3>
-            <div class="text-slate-400 text-sm">Only league-selected habits count here.</div>
+          <div class="xl:col-span-1 space-y-6">
+            <div class="glass rounded-2xl p-6">
+              <h3 class="text-2xl font-extrabold">League Habits</h3>
+              <div id="league-habits-view" class="mt-4 grid grid-cols-1 gap-3"></div>
+            </div>
+
+            <div class="glass rounded-2xl p-6">
+              <h3 class="text-2xl font-extrabold">Tier Rank</h3>
+              <div id="league-tier-card" class="mt-4"></div>
+            </div>
           </div>
-          <div id="league-board" class="mt-4 space-y-3"></div>
         </div>
       </div>
 
@@ -292,7 +303,7 @@
 
           <div class="flex flex-col md:flex-row gap-6 items-start">
             <div class="flex items-center gap-4">
-              <img id="avatar-img" class="w-20 h-20 rounded-2xl object-cover bg-slate-800 border border-slate-700" alt="avatar" />
+              <img id="avatar-img" class="w-24 h-24 rounded-2xl object-cover bg-slate-800 border border-slate-700" alt="avatar" />
               <div>
                 <div class="text-slate-400 text-sm">Name</div>
                 <div id="profile-name" class="text-2xl font-extrabold">—</div>
