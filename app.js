@@ -127,6 +127,7 @@
 
   let leagueSettingsCustomDraft = [];
   let leagueSettingsImageUrl = null;
+  let currentViewedPlayer = null;
 
   function applyDashboardBackground(url) {
     const body = document.body;
@@ -210,6 +211,19 @@
 
     const inviteLink = `${window.location.origin}${window.location.pathname}?friend=${encodeURIComponent(currentProfile.friend_code || "")}`;
     if ($("friend-invite-link")) $("friend-invite-link").value = inviteLink;
+  }
+
+  function renderStreakDisplay(value) {
+    const streak = Number(value || 0);
+    const el = $("hdr-streak");
+    if (!el) return;
+    if (streak > 0) {
+      el.textContent = `🔥 ${streak}`;
+      el.className = "text-2xl font-extrabold text-amber-300";
+    } else {
+      el.textContent = `🩶 0`;
+      el.className = "text-2xl font-extrabold text-slate-400";
+    }
   }
 
   async function saveBio() {
@@ -831,6 +845,138 @@
     `;
   }
 
+  async function isFriendWith(userId) {
+    if (!currentUser || !userId || userId === currentUser.id) return false;
+    try {
+      const { data, error } = await sb.rpc("list_friends");
+      if (error) return false;
+      return (data || []).some(f => f.friend_user_id === userId || f.friend_id === userId || f.user_id === userId);
+    } catch {
+      return false;
+    }
+  }
+
+  async function openPlayerCard(playerRow) {
+    currentViewedPlayer = playerRow;
+    const modal = $("player-card-modal");
+    modal?.classList.remove("hidden");
+    setText("player-card-msg", "");
+
+    const defaultAvatar = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='100%25' height='100%25' fill='%231f2937'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='56'>👤</text></svg>";
+    const avatarEl = $("player-card-avatar");
+    if (avatarEl) avatarEl.src = playerRow.avatar_url || defaultAvatar;
+
+    setText("player-card-name", playerRow.name || "Player");
+    const tier = tierFromPoints(playerRow.points || 0);
+    setText("player-card-tier", `${tier.emoji} ${tier.name}`);
+    setText("player-card-points", Number(playerRow.points || 0));
+
+    const { data: player, error: pErr } = await sb
+      .from("players")
+      .select("user_id,name,bio,avatar_url")
+      .eq("user_id", playerRow.user_id)
+      .maybeSingle();
+
+    if (!pErr && player) {
+      setText("player-card-bio", player.bio || "");
+      if (avatarEl) avatarEl.src = player.avatar_url || defaultAvatar;
+    } else {
+      setText("player-card-bio", "");
+    }
+
+    try {
+      const [streak, achCount] = await Promise.all([
+        computeStreak(playerRow.user_id),
+        countAchievements(playerRow.user_id)
+      ]);
+
+      setText("player-card-streak", streak > 0 ? `🔥 ${streak}` : `🩶 0`);
+      setText("player-card-achievements", achCount);
+    } catch {
+      setText("player-card-streak", "0");
+      setText("player-card-achievements", "0");
+    }
+
+    const achBox = $("player-card-ach-list");
+    if (achBox) achBox.innerHTML = `<div class="text-slate-300 text-sm">Loading…</div>`;
+
+    try {
+      const { data: achRows } = await sb
+        .from("user_achievements")
+        .select("earned_at, achievements(name,icon,description)")
+        .eq("user_id", playerRow.user_id)
+        .order("earned_at", { ascending: false })
+        .limit(25);
+
+      if (achBox) {
+        achBox.innerHTML = "";
+        if (!achRows || achRows.length === 0) {
+          achBox.innerHTML = `<div class="text-slate-300 text-sm">No achievements yet.</div>`;
+        } else {
+          achRows.forEach(row => {
+            const a = row.achievements;
+            const div = document.createElement("div");
+            div.className = "bg-slate-900/50 border border-slate-700 rounded-xl p-3 flex items-start gap-3";
+            div.innerHTML = `
+              <div class="text-2xl">${a?.icon || "🏅"}</div>
+              <div>
+                <div class="font-extrabold">${a?.name || "Achievement"}</div>
+                <div class="text-slate-300 text-sm">${a?.description || ""}</div>
+              </div>
+            `;
+            achBox.appendChild(div);
+          });
+        }
+      }
+    } catch {
+      if (achBox) achBox.innerHTML = `<div class="text-slate-300 text-sm">Could not load achievements.</div>`;
+    }
+
+    const addBtn = $("btn-player-card-add-friend");
+    if (!addBtn) return;
+
+    if (playerRow.user_id === currentUser.id) {
+      addBtn.classList.add("hidden");
+      return;
+    }
+
+    const alreadyFriend = await isFriendWith(playerRow.user_id);
+    if (alreadyFriend) {
+      addBtn.classList.add("hidden");
+    } else {
+      addBtn.classList.remove("hidden");
+    }
+  }
+
+  async function sendFriendRequestToViewedPlayer() {
+    if (!currentViewedPlayer?.user_id) return;
+    setText("player-card-msg", "");
+
+    const { data: player, error } = await sb
+      .from("players")
+      .select("friend_code")
+      .eq("user_id", currentViewedPlayer.user_id)
+      .maybeSingle();
+
+    if (error || !player?.friend_code) {
+      setText("player-card-msg", "Could not send friend request.");
+      return;
+    }
+
+    const { data: out, error: reqErr } = await sb.rpc("request_friend", {
+      p_friend_code: player.friend_code
+    });
+
+    if (reqErr) {
+      setText("player-card-msg", reqErr.message);
+      return;
+    }
+
+    setText("player-card-msg", out?.message || "Friend request sent.");
+    $("btn-player-card-add-friend")?.classList.add("hidden");
+    toast(out?.message || "Friend request sent!");
+  }
+
   async function refreshLeagueBoard() {
     if (!selectedLeague) return;
 
@@ -861,8 +1007,9 @@
     for (const r of data) {
       const tier = tierFromPoints(r.points || 0);
 
-      const card = document.createElement("div");
-      card.className = "rounded-2xl p-4 bg-slate-900/40 border border-slate-700 flex items-center justify-between gap-4";
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "w-full rounded-2xl p-4 bg-slate-900/40 border border-slate-700 flex items-center justify-between gap-4 hover:bg-slate-800/60 text-left";
 
       const avatar = r.avatar_url
         ? `<img src="${r.avatar_url}" class="w-16 h-16 rounded-2xl object-cover border border-slate-700 bg-slate-800" />`
@@ -882,6 +1029,8 @@
           <div class="text-slate-400 text-xs">points</div>
         </div>
       `;
+
+      card.addEventListener("click", () => openPlayerCard(r));
       board.appendChild(card);
       rank++;
     }
@@ -1996,7 +2145,7 @@
       totalPoints(currentUser.id)
     ]);
 
-    setText("hdr-streak", streak);
+    renderStreakDisplay(streak);
     setText("hdr-ach", ach);
     setText("hdr-points", pts);
 
@@ -2099,6 +2248,12 @@
   $("btn-close-league-settings")?.addEventListener("click", closeLeagueSettingsModal);
   $("btn-add-league-custom-habit")?.addEventListener("click", addLeagueCustomHabitDraft);
   $("btn-save-league-settings")?.addEventListener("click", saveLeagueSettings);
+
+  $("btn-close-player-card")?.addEventListener("click", () => {
+    $("player-card-modal")?.classList.add("hidden");
+    currentViewedPlayer = null;
+  });
+  $("btn-player-card-add-friend")?.addEventListener("click", sendFriendRequestToViewedPlayer);
 
   $("league-image-file")?.addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
